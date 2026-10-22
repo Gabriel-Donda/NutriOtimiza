@@ -16,7 +16,7 @@ Requer o .NET Framework 4.8, que já vem no Windows 10 (1903+) e 11 e pode ser i
 | Espaço em disco (mapa de pastas + maiores arquivos) | ✅ Fase 2 |
 | Otimizações (37 ajustes curados, com desfazer e ponto de restauração) | ✅ Fase 3 |
 | Inicialização (ativar/desativar como o Gerenciador de Tarefas) | ✅ Fase 3 |
-| Remoção de bloatware | Fase 3b |
+| Apps pré-instalados (remoção de bloatware com reinstalação) | ✅ Fase 3b |
 | Reparo (SFC, DISM, rede, BSOD) | Fase 4 |
 | Instalador, atualização automática, assinatura | Fase 5 |
 

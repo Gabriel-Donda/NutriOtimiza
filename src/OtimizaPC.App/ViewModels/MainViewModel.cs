@@ -48,6 +48,7 @@ namespace OtimizaPC.App.ViewModels
                 new NavItem("Espaço em disco", SymbolRegular.DataPie24, new DiskAnalyzerViewModel()),
                 new NavItem("Otimizações", SymbolRegular.Flash24, new OptimizationsViewModel(dialogs)),
                 new NavItem("Inicialização", SymbolRegular.Rocket24, new StartupViewModel()),
+                new NavItem("Apps pré-instalados", SymbolRegular.Apps24, new AppsViewModel(dialogs)),
                 new NavItem("Reparo", SymbolRegular.WrenchScrewdriver24, new ComingSoonViewModel(
                     "Reparo", SymbolRegular.WrenchScrewdriver24, 4,
                     "Ferramentas de diagnóstico e reparo do técnico em um só lugar.",
