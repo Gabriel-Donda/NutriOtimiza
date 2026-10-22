@@ -1,0 +1,25 @@
+<Project>
+  <!-- Configurações comuns a todos os projetos da solução -->
+  <PropertyGroup>
+    <!-- .NET Framework 4.8: roda no Windows 8.1, 10, 11 e Server 2012 R2+ -->
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!--
+      Build por arquitetura: a LibreHardwareMonitor só distribui DLLs específicas (win-x64/win-x86).
+      Padrão x64; para Windows 32 bits use: dotnet publish -r win-x86
+    -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <Prefer32Bit>false</Prefer32Bit>
+    <Company>OtimizaPC</Company>
+    <Product>OtimizaPC</Product>
+    <Copyright>© 2026 OtimizaPC</Copyright>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Permite compilar para .NET Framework sem o targeting pack instalado -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

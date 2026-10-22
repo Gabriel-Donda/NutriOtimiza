@@ -1,0 +1,177 @@
+<UserControl
+    x:Class="OtimizaPC.App.Views.DashboardView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:OtimizaPC.App.Controls"
+    xmlns:models="clr-namespace:OtimizaPC.Core.Models;assembly=OtimizaPC.Core"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28,24,28,28">
+            <TextBlock Style="{StaticResource PageTitle}" Text="Painel" />
+            <TextBlock Style="{StaticResource PageSubtitle}" Text="Visão geral do computador em tempo real" />
+
+            <ui:InfoBar
+                Title="Sensores"
+                Margin="0,0,0,16"
+                IsClosable="False"
+                IsOpen="{Binding HasSensorMessage, Mode=OneWay}"
+                Message="{Binding SensorMessage}"
+                Severity="Warning" />
+
+            <!-- Cartões de métricas -->
+            <ItemsControl Margin="0,0,-12,0" ItemsSource="{Binding Cards}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="3" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <ui:Card
+                            Margin="0,0,12,12"
+                            Padding="18,16"
+                            VerticalAlignment="Stretch"
+                            VerticalContentAlignment="Stretch">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon
+                                        FontSize="18"
+                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                        Symbol="{Binding Icon}" />
+                                    <TextBlock
+                                        Margin="8,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Style="{StaticResource SecondaryText}"
+                                        Text="{Binding Title}" />
+                                </StackPanel>
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Margin="0,8,0,0"
+                                    FontSize="28"
+                                    FontWeight="SemiBold"
+                                    Text="{Binding Value}"
+                                    TextTrimming="CharacterEllipsis">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Status}" Value="{x:Static models:HealthStatus.Warning}">
+                                                    <Setter Property="Foreground" Value="{DynamicResource StatusWarningBrush}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="{x:Static models:HealthStatus.Critical}">
+                                                    <Setter Property="Foreground" Value="{DynamicResource StatusCriticalBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock
+                                    Grid.Row="2"
+                                    Margin="0,2,0,0"
+                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                    Text="{Binding Detail}"
+                                    TextTrimming="CharacterEllipsis"
+                                    ToolTip="{Binding Detail}" />
+                                <controls:Sparkline
+                                    Grid.Row="3"
+                                    Height="44"
+                                    Margin="0,12,0,0"
+                                    VerticalAlignment="Bottom"
+                                    Maximum="{Binding Maximum}"
+                                    Stroke="{DynamicResource AccentFillColorDefaultBrush}"
+                                    Values="{Binding History}"
+                                    Visibility="{Binding ShowChart, Converter={StaticResource BoolToVisibility}}" />
+                            </Grid>
+                        </ui:Card>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Grid Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Saúde do sistema -->
+                <ui:Card Padding="20" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
+                    <StackPanel>
+                        <DockPanel>
+                            <ui:Button
+                                Appearance="Secondary"
+                                Command="{Binding RunHealthCheckCommand}"
+                                Content="Verificar novamente"
+                                DockPanel.Dock="Right"
+                                Icon="{ui:SymbolIcon ArrowSync24}" />
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="Saúde do sistema" />
+                        </DockPanel>
+
+                        <StackPanel Margin="0,14,0,10" Orientation="Horizontal">
+                            <TextBlock
+                                FontSize="44"
+                                FontWeight="Bold"
+                                Foreground="{Binding ScoreStatus, Converter={StaticResource StatusToBrush}}"
+                                Text="{Binding Score}" />
+                            <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource SecondaryText}" Text="de 100" />
+                                <TextBlock FontSize="16" FontWeight="SemiBold" Text="{Binding ScoreLabel}" />
+                            </StackPanel>
+                            <ui:ProgressRing
+                                Width="24"
+                                Height="24"
+                                Margin="16,0,0,0"
+                                IsIndeterminate="True"
+                                Visibility="{Binding IsCheckingHealth, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+
+                        <ItemsControl ItemsSource="{Binding Checks}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <ui:SymbolIcon
+                                            Margin="0,1,12,0"
+                                            VerticalAlignment="Top"
+                                            FontSize="20"
+                                            Foreground="{Binding Status, Converter={StaticResource StatusToBrush}}"
+                                            Symbol="{Binding Status, Converter={StaticResource StatusToSymbol}}" />
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock FontWeight="SemiBold" Text="{Binding Title}" />
+                                            <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Detail}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ui:Card>
+
+                <!-- Resumo do sistema -->
+                <ui:Card
+                    Grid.Column="2"
+                    Padding="20"
+                    VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Top">
+                    <StackPanel>
+                        <TextBlock
+                            Margin="0,4,0,14"
+                            Style="{StaticResource SectionTitle}"
+                            Text="Resumo do computador" />
+                        <ItemsControl ItemTemplate="{StaticResource InfoEntryTemplate}" ItemsSource="{Binding Summary}" />
+                    </StackPanel>
+                </ui:Card>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

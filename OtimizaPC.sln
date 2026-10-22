@@ -1,0 +1,41 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3E187EC8-C406-4DBC-B809-7ED833C7B842}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OtimizaPC.Core", "src\OtimizaPC.Core\OtimizaPC.Core.csproj", "{FEE34522-F6FC-40DF-8433-7A74E33B5A55}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OtimizaPC.Hardware", "src\OtimizaPC.Hardware\OtimizaPC.Hardware.csproj", "{3419438E-2322-4155-A1C1-D8D67B2CD8D9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OtimizaPC.App", "src\OtimizaPC.App\OtimizaPC.App.csproj", "{CF7D8126-5C24-45CF-95C1-F0DB11102D2C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FEE34522-F6FC-40DF-8433-7A74E33B5A55}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FEE34522-F6FC-40DF-8433-7A74E33B5A55}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FEE34522-F6FC-40DF-8433-7A74E33B5A55}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FEE34522-F6FC-40DF-8433-7A74E33B5A55}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3419438E-2322-4155-A1C1-D8D67B2CD8D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3419438E-2322-4155-A1C1-D8D67B2CD8D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3419438E-2322-4155-A1C1-D8D67B2CD8D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3419438E-2322-4155-A1C1-D8D67B2CD8D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CF7D8126-5C24-45CF-95C1-F0DB11102D2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CF7D8126-5C24-45CF-95C1-F0DB11102D2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CF7D8126-5C24-45CF-95C1-F0DB11102D2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CF7D8126-5C24-45CF-95C1-F0DB11102D2C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{FEE34522-F6FC-40DF-8433-7A74E33B5A55} = {3E187EC8-C406-4DBC-B809-7ED833C7B842}
+		{3419438E-2322-4155-A1C1-D8D67B2CD8D9} = {3E187EC8-C406-4DBC-B809-7ED833C7B842}
+		{CF7D8126-5C24-45CF-95C1-F0DB11102D2C} = {3E187EC8-C406-4DBC-B809-7ED833C7B842}
+	EndGlobalSection
+EndGlobal

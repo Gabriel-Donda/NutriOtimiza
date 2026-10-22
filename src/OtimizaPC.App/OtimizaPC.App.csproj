@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>OtimizaPC.App</RootNamespace>
+    <AssemblyName>OtimizaPC</AssemblyName>
+    <!-- Release exige administrador; Debug roda sem elevação para facilitar o desenvolvimento -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <ApplicationManifest>app.debug.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OtimizaPC.Core\OtimizaPC.Core.csproj" />
+    <ProjectReference Include="..\OtimizaPC.Hardware\OtimizaPC.Hardware.csproj" />
+  </ItemGroup>
+
+</Project>
