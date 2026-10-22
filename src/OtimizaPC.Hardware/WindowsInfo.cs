@@ -61,6 +61,19 @@ namespace OtimizaPC.Hardware
             }
         }
 
+        /// <summary>Versão instalada do .NET Framework 4.x (Environment.Version só mostra o runtime 4.0.30319).</summary>
+        public static string DotNetFrameworkVersion
+        {
+            get
+            {
+                var release = Reg.GetValue(RegistryHive.LocalMachine, @"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full", "Release") as int? ?? 0;
+                if (release >= 533320) return ".NET Framework 4.8.1";
+                if (release >= 528040) return ".NET Framework 4.8";
+                if (release >= 461808) return ".NET Framework 4.7.2";
+                return release > 0 ? ".NET Framework 4.x" : null;
+            }
+        }
+
         public static bool RebootPending =>
             Reg.KeyExists(RegistryHive.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired")
             || Reg.KeyExists(RegistryHive.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending");

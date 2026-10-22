@@ -4,4 +4,12 @@
     <RootNamespace>OtimizaPC.Core</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OtimizaPC.Tests" />
+  </ItemGroup>
+
 </Project>

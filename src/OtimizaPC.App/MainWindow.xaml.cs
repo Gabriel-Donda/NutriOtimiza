@@ -1,6 +1,5 @@
-using System;
-using OtimizaPC.Core;
-using Wpf.Ui.Appearance;
+using OtimizaPC.App.Services;
+using OtimizaPC.Core.Settings;
 using Wpf.Ui.Controls;
 
 namespace OtimizaPC.App
@@ -10,18 +9,8 @@ namespace OtimizaPC.App
         public MainWindow()
         {
             InitializeComponent();
-            Loaded += (_, __) =>
-            {
-                try
-                {
-                    // Acompanha a troca de tema claro/escuro do Windows 10/11
-                    SystemThemeWatcher.Watch(this);
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn("Monitor de tema indisponível: " + ex.Message);
-                }
-            };
+            // Acompanha a troca de tema claro/escuro do Windows 10/11 quando a preferência é "Sistema"
+            Loaded += (_, __) => ThemeService.Watch(new SettingsStore().Load().Theme);
         }
     }
 }

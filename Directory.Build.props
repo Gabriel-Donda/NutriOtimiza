@@ -15,7 +15,7 @@
     <Company>OtimizaPC</Company>
     <Product>OtimizaPC</Product>
     <Copyright>© 2026 OtimizaPC</Copyright>
-    <Version>0.1.0</Version>
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

@@ -2,36 +2,38 @@
 
 Aplicativo de otimização, limpeza e diagnóstico para Windows, pensado para técnicos e usuários avançados.
 
-**Compatibilidade:** Windows 8.1, 10, 11 e Windows Server 2012 R2 ou superior (x64).
+**Compatibilidade:** Windows 8.1, 10, 11 e Windows Server 2012 R2 ou superior, em x64 (e x86 para Windows 32 bits).
 Requer o .NET Framework 4.8, que já vem no Windows 10 (1903+) e 11 e pode ser instalado no 8.1 / 2012 R2.
+O instalador verifica e, se faltar, oferece o link oficial de download.
 
 ## Módulos
 
-| Módulo | Status |
+| Módulo | O que faz |
 |---|---|
-| Painel (métricas ao vivo + nota de saúde) | ✅ Fase 1 |
-| Hardware (relatório completo + exportação HTML) | ✅ Fase 1 |
-| Sensores (temperaturas, clocks, ventoinhas, mín/máx) | ✅ Fase 1 |
-| Limpeza (temporários, Windows Update, navegadores, apps, DISM, lixeira) | ✅ Fase 2 |
-| Espaço em disco (mapa de pastas + maiores arquivos) | ✅ Fase 2 |
-| Otimizações (37 ajustes curados, com desfazer e ponto de restauração) | ✅ Fase 3 |
-| Inicialização (ativar/desativar como o Gerenciador de Tarefas) | ✅ Fase 3 |
-| Apps pré-instalados (remoção de bloatware com reinstalação) | ✅ Fase 3b |
-| Reparo (SFC, DISM, CHKDSK, rede, Windows Update, erros do sistema, telas azuis, drivers) | ✅ Fase 4 |
-| Instalador, atualização automática, assinatura | Fase 5 |
+| Painel | Métricas ao vivo e nota de saúde do sistema |
+| Hardware | Relatório completo, exportável em HTML |
+| Sensores | Temperaturas, clocks e ventoinhas com mínimo e máximo |
+| Limpeza | Temporários, Windows Update, navegadores, apps, DISM e lixeira, com análise prévia |
+| Espaço em disco | Mapa de pastas e maiores arquivos |
+| Otimizações | 37 ajustes curados, com desfazer e ponto de restauração |
+| Inicialização | Ativar/desativar programas como o Gerenciador de Tarefas |
+| Apps pré-instalados | Remoção de bloatware com reinstalação |
+| Reparo | SFC, DISM, CHKDSK, rede, Windows Update, erros do sistema, telas azuis e drivers |
+| Configurações | Tema, atualização automática, limpeza semanal agendada, driver de sensores e histórico |
 
 ## Estrutura
 
 ```
 src/
-├── OtimizaPC.Core      → modelos, log, formatação, exportação de relatório
+├── OtimizaPC.Core      → modelos, log, histórico, configurações, atualização, exportação de relatório
 ├── OtimizaPC.Hardware  → WMI, registro, Win32, sensores (LibreHardwareMonitor), verificações de saúde
-├── OtimizaPC.Cleaning  → motor de limpeza (catálogo, varredura, remoção segura) e analisador de disco
-├── OtimizaPC.Tweaks    → otimizações reversíveis (registro, serviços, energia), ponto de restauração, inicialização, apps
-├── OtimizaPC.Repair    → ferramentas de reparo com saída ao vivo, análise de eventos, telas azuis e drivers
+├── OtimizaPC.Cleaning  → motor de limpeza, limpeza agendada e analisador de disco
+├── OtimizaPC.Tweaks    → otimizações reversíveis, ponto de restauração, inicialização, apps
+├── OtimizaPC.Repair    → ferramentas de reparo com saída ao vivo, eventos, telas azuis e drivers
 └── OtimizaPC.App       → interface WPF (WPF-UI, MVVM com CommunityToolkit.Mvvm)
-tests/
-└── OtimizaPC.Tests     → testes do motor de limpeza (xUnit)
+tests/OtimizaPC.Tests   → testes automatizados (xUnit)
+installer/              → script do instalador (Inno Setup 6)
+tools/                  → build dos pacotes e geração do ícone
 ```
 
 ## Regras de segurança da limpeza
@@ -41,7 +43,7 @@ tests/
 - Nunca segue junctions/links simbólicos.
 - Arquivos em uso são mantidos, nunca forçados. Temporários com menos de 24 h são preservados.
 - Caches de apps (navegadores, Discord…) só são limpos com o app fechado.
-- Sempre há análise prévia e confirmação antes de apagar.
+- Sempre há análise prévia e confirmação antes de apagar. A limpeza agendada usa só itens seguros e recomendados.
 
 ## Regras das otimizações
 
@@ -49,13 +51,9 @@ tests/
 - Reverter restaura o valor original; se o app criou a chave, remove só o que ficou vazio (preserva valores de outros programas).
 - Sem registro de desfazer (ajuste feito fora do app), reverter volta ao padrão do Windows.
 - Cada otimização declara risco, versões do Windows suportadas e se exige reiniciar.
-- Todo o histórico de alterações fica em `%LocalAppData%\OtimizaPC\history.log`.
+- Todo o histórico de alterações fica em `%LocalAppData%\OtimizaPC\history.log` e aparece em Configurações.
 
-```bash
-dotnet test
-```
-
-## Compilar e rodar
+## Desenvolvimento
 
 Requer o .NET SDK 8 ou superior.
 
@@ -63,18 +61,44 @@ Requer o .NET SDK 8 ou superior.
 dotnet build
 ```
 
-O executável fica em `src/OtimizaPC.App/bin/Debug/net48/win-x64/OtimizaPC.exe`.
-
-- **Debug** roda sem pedir administrador. Temperaturas e alguns sensores ficam indisponíveis.
-- **Release** pede elevação (UAC), necessária para os módulos de limpeza e otimização.
-
 ```bash
-dotnet publish src/OtimizaPC.App -c Release -r win-x64 -o publish/x64
+dotnet test
 ```
 
-Para Windows 8.1 32 bits, use `-r win-x86`.
+O executável de desenvolvimento fica em `src/OtimizaPC.App/bin/Debug/net48/win-x64/OtimizaPC.exe`.
+
+- **Debug** roda sem pedir administrador. Temperaturas e itens do sistema ficam indisponíveis.
+- **Release** pede elevação (UAC), necessária para limpeza do sistema, otimizações e reparos.
+
+## Gerar os pacotes de distribuição
+
+Requer também o [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`).
+
+```bash
+pwsh tools/build.ps1
+```
+
+Roda os testes e gera em `artifacts/`, para x64 e x86:
+
+- `OtimizaPC-Setup-{versão}-{arq}.exe`: instalador (Program Files, menu Iniciar, desinstalação).
+- `OtimizaPC-Portable-{versão}-{arq}.zip`: versão portátil para pendrive de técnico.
+- Um `.sha256` para cada arquivo.
+
+A versão vem de `<Version>` em `Directory.Build.props`. O ícone é gerado por `tools/generate-icon.ps1`.
+
+## Publicar uma versão (atualização automática)
+
+O app verifica atualizações no GitHub Releases do repositório informado em **Configurações → Repositório de versões** (formato `dono/repositório`).
+
+1. Aumente `<Version>` em `Directory.Build.props` e rode `tools/build.ps1`.
+2. Crie uma release no GitHub com a tag `v{versão}` (ex.: `v1.1.0`).
+3. Anexe os instaladores **e** os respectivos `.sha256`. Sem o `.sha256`, o app recusa a atualização.
+
+O app baixa o instalador da sua arquitetura, confere o SHA-256, instala em modo silencioso e se reabre.
 
 ## Observações
 
-- A temperatura da CPU exige executar como administrador **e** ter o driver [PawnIO](https://pawnio.eu) instalado (exigência da LibreHardwareMonitor 0.9.5+).
-- Logs ficam em `%LocalAppData%\OtimizaPC\logs`.
+- **Assinatura digital:** os executáveis não são assinados. Até haver um certificado de assinatura de código, o Windows SmartScreen mostra o aviso "O Windows protegeu o computador" na primeira execução, e alguns antivírus podem desconfiar, já que o app altera registro e serviços.
+- **Temperatura da CPU:** exige executar como administrador **e** ter o driver [PawnIO](https://pawnio.eu), exigência da LibreHardwareMonitor 0.9.5+. O app oferece a instalação em Configurações → Sensores.
+- **Versão x86:** só é instalada em Windows 32 bits. Em Windows 64 bits, os sensores exigem o processo 64 bits.
+- **Logs:** ficam em `%LocalAppData%\OtimizaPC\logs`.

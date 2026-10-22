@@ -7,7 +7,15 @@
     <AssemblyName>OtimizaPC</AssemblyName>
     <!-- Release exige administrador; Debug roda sem elevação para facilitar o desenvolvimento -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <AssemblyTitle>OtimizaPC</AssemblyTitle>
+    <Description>Otimização, limpeza e diagnóstico do Windows</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\app-256.png" />
+  </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <ApplicationManifest>app.debug.manifest</ApplicationManifest>

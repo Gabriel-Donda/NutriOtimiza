@@ -2,9 +2,9 @@ using System.Windows.Controls;
 
 namespace OtimizaPC.App.Views
 {
-    public partial class ComingSoonView : UserControl
+    public partial class SettingsView : UserControl
     {
-        public ComingSoonView()
+        public SettingsView()
         {
             InitializeComponent();
         }

@@ -1,0 +1,204 @@
+<UserControl
+    x:Class="OtimizaPC.App.Views.SettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+
+    <UserControl.Resources>
+        <!-- Linha de configuração: título + descrição à esquerda, controle à direita -->
+        <Style
+            x:Key="SettingCard"
+            BasedOn="{StaticResource {x:Type ui:Card}}"
+            TargetType="ui:Card">
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="Padding" Value="18,14" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28,24,28,28">
+            <TextBlock Style="{StaticResource PageTitle}" Text="Configurações" />
+            <TextBlock Style="{StaticResource PageSubtitle}" Text="Preferências, atualizações e histórico de alterações." />
+
+            <!-- Aparência -->
+            <TextBlock Margin="0,4,0,8" Style="{StaticResource SectionTitle}" Text="Aparência" />
+            <ui:Card Style="{StaticResource SettingCard}">
+                <DockPanel>
+                    <ComboBox
+                        Width="200"
+                        DockPanel.Dock="Right"
+                        ItemsSource="{Binding ThemeOptions}"
+                        SelectedIndex="{Binding ThemeIndex}" />
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Tema" />
+                        <TextBlock Style="{StaticResource SecondaryText}" Text="Claro, escuro ou acompanhando o Windows." />
+                    </StackPanel>
+                </DockPanel>
+            </ui:Card>
+
+            <!-- Atualizações -->
+            <TextBlock Margin="0,16,0,8" Style="{StaticResource SectionTitle}" Text="Atualizações" />
+            <ui:Card Style="{StaticResource SettingCard}">
+                <StackPanel>
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <ui:Button
+                                Margin="0,0,8,0"
+                                Appearance="Secondary"
+                                Command="{Binding CheckUpdatesCommand}"
+                                Content="Verificar agora"
+                                Icon="{ui:SymbolIcon ArrowSync24}" />
+                            <ui:Button
+                                Appearance="Primary"
+                                Command="{Binding InstallUpdateCommand}"
+                                Content="Baixar e instalar"
+                                Icon="{ui:SymbolIcon ArrowDownload24}"
+                                Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Text="{Binding VersionText}" />
+                            <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding UpdateStatus}" />
+                        </StackPanel>
+                    </DockPanel>
+                    <ProgressBar
+                        Height="4"
+                        Margin="0,10,0,0"
+                        Maximum="100"
+                        Value="{Binding DownloadProgress}"
+                        Visibility="{Binding IsUpdating, Converter={StaticResource BoolToVisibility}}" />
+                    <ui:Button
+                        Margin="0,8,0,0"
+                        Appearance="Transparent"
+                        Command="{Binding OpenReleasePageCommand}"
+                        Content="Ver novidades desta versão"
+                        Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource SettingCard}">
+                <DockPanel>
+                    <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding CheckUpdatesOnStartup}" />
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Verificar ao abrir o app" />
+                        <TextBlock Style="{StaticResource SecondaryText}" Text="Um aviso aparece no topo quando houver versão nova. Nada é instalado sem você confirmar." />
+                    </StackPanel>
+                </DockPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource SettingCard}">
+                <DockPanel>
+                    <ui:TextBox
+                        Width="260"
+                        DockPanel.Dock="Right"
+                        PlaceholderText="dono/repositório"
+                        Text="{Binding UpdateRepository, UpdateSourceTrigger=LostFocus}" />
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Repositório de versões (GitHub)" />
+                        <TextBlock Style="{StaticResource SecondaryText}" Text="Onde as versões são publicadas. Cada versão deve ter o instalador e o arquivo .sha256 correspondente." />
+                    </StackPanel>
+                </DockPanel>
+            </ui:Card>
+
+            <!-- Automação -->
+            <TextBlock Margin="0,16,0,8" Style="{StaticResource SectionTitle}" Text="Automação" />
+            <ui:Card Style="{StaticResource SettingCard}">
+                <DockPanel>
+                    <ui:ToggleSwitch
+                        DockPanel.Dock="Right"
+                        IsChecked="{Binding IsCleanupScheduled}"
+                        IsEnabled="{Binding IsAdministrator}" />
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Limpeza automática semanal" />
+                        <TextBlock Style="{StaticResource SecondaryText}" Text="Remove temporários e caches seguros em segundo plano, sem abrir janela." />
+                        <TextBlock
+                            FontSize="12"
+                            Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                            Text="{Binding CleanupStatus}"
+                            TextWrapping="Wrap"
+                            Visibility="{Binding CleanupStatus, Converter={StaticResource NullToCollapsed}}" />
+                    </StackPanel>
+                </DockPanel>
+            </ui:Card>
+
+            <!-- Sensores -->
+            <TextBlock Margin="0,16,0,8" Style="{StaticResource SectionTitle}" Text="Sensores" />
+            <ui:Card Style="{StaticResource SettingCard}">
+                <DockPanel>
+                    <ui:Button
+                        Appearance="Secondary"
+                        Command="{Binding InstallPawnIoCommand}"
+                        Content="Instalar driver"
+                        DockPanel.Dock="Right"
+                        Icon="{ui:SymbolIcon ArrowDownload24}"
+                        Visibility="{Binding IsPawnIoInstalled, Converter={StaticResource InverseBoolToVisibility}}" />
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Driver PawnIO (temperatura da CPU)" />
+                        <TextBlock Style="{StaticResource SecondaryText}">
+                            <Run Text="Necessário para ler temperatura e clock do processador. " />
+                            <Run Text="{Binding IsPawnIoInstalled, Mode=OneWay, Converter={StaticResource PawnIoStatus}}" />
+                        </TextBlock>
+                    </StackPanel>
+                </DockPanel>
+            </ui:Card>
+
+            <!-- Histórico -->
+            <DockPanel Margin="0,16,0,8">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <ui:Button
+                        Margin="0,0,8,0"
+                        Appearance="Transparent"
+                        Command="{Binding OpenDataFolderCommand}"
+                        Content="Abrir pasta de dados e logs"
+                        Icon="{ui:SymbolIcon FolderOpen24}" />
+                    <ui:Button
+                        Appearance="Transparent"
+                        Command="{Binding LoadHistoryCommand}"
+                        Icon="{ui:SymbolIcon ArrowSync24}"
+                        ToolTip="Atualizar" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource SectionTitle}" Text="Histórico de alterações" />
+            </DockPanel>
+            <ui:Card Style="{StaticResource SettingCard}">
+                <StackPanel>
+                    <TextBlock
+                        Style="{StaticResource SecondaryText}"
+                        Text="Nenhuma alteração registrada ainda."
+                        Visibility="{Binding History.Count, Converter={StaticResource ZeroToVisible}}" />
+                    <ItemsControl ItemsSource="{Binding History}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding When}" />
+                                    <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="{Binding Area}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Message}" TextWrapping="Wrap" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ui:Card>
+
+            <!-- Sobre -->
+            <TextBlock Margin="0,16,0,8" Style="{StaticResource SectionTitle}" Text="Sobre" />
+            <ui:Card Style="{StaticResource SettingCard}">
+                <StackPanel>
+                    <TextBlock FontWeight="SemiBold" Text="{Binding VersionText}" />
+                    <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding SystemText}" />
+                    <TextBlock Style="{StaticResource SecondaryText}">
+                        <Run Text="Dados e logs: " />
+                        <Run Text="{Binding DataFolder, Mode=OneWay}" />
+                    </TextBlock>
+                    <TextBlock
+                        Margin="0,8,0,0"
+                        FontSize="12"
+                        Style="{StaticResource SecondaryText}"
+                        Text="Usa LibreHardwareMonitor (MPL 2.0), WPF-UI (MIT) e CommunityToolkit.Mvvm (MIT)." />
+                </StackPanel>
+            </ui:Card>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
