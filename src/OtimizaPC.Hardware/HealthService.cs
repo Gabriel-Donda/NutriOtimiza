@@ -8,6 +8,7 @@ using OtimizaPC.Core;
 using OtimizaPC.Core.Models;
 using OtimizaPC.Hardware.Interop;
 using OtimizaPC.Hardware.Sensors;
+using OtimizaPC.Tweaks.Startup;
 
 namespace OtimizaPC.Hardware
 {
@@ -114,35 +115,12 @@ namespace OtimizaPC.Hardware
 
         private static HealthCheck CheckStartup()
         {
-            var count = StartupCount();
+            // Conta só os ativos: itens desativados no Gerenciador de Tarefas não pesam no boot
+            var count = StartupManager.List().Count(e => e.IsEnabled);
             var detail = $"{count} programa(s) iniciam com o Windows";
             return count > 15
                 ? new HealthCheck("Inicialização", detail + " — isso deixa o boot lento", HealthStatus.Warning)
                 : new HealthCheck("Inicialização", detail, HealthStatus.Ok);
-        }
-
-        private static int StartupCount()
-        {
-            const string run = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
-            const string run32 = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run";
-            var count = Reg.ValueCount(RegistryHive.CurrentUser, run)
-                        + Reg.ValueCount(RegistryHive.LocalMachine, run)
-                        + Reg.ValueCount(RegistryHive.LocalMachine, run32);
-
-            foreach (var folder in new[] { Environment.SpecialFolder.Startup, Environment.SpecialFolder.CommonStartup })
-            {
-                try
-                {
-                    var path = Environment.GetFolderPath(folder);
-                    if (Directory.Exists(path))
-                        count += Directory.GetFiles(path).Count(f => !f.EndsWith("desktop.ini", StringComparison.OrdinalIgnoreCase));
-                }
-                catch
-                {
-                    // Pasta inacessível: ignora
-                }
-            }
-            return count;
         }
 
         private static HealthCheck CheckTempFiles()

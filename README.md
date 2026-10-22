@@ -14,7 +14,9 @@ Requer o .NET Framework 4.8, que já vem no Windows 10 (1903+) e 11 e pode ser i
 | Sensores (temperaturas, clocks, ventoinhas, mín/máx) | ✅ Fase 1 |
 | Limpeza (temporários, Windows Update, navegadores, apps, DISM, lixeira) | ✅ Fase 2 |
 | Espaço em disco (mapa de pastas + maiores arquivos) | ✅ Fase 2 |
-| Otimizações (com desfazer) | Fase 3 |
+| Otimizações (37 ajustes curados, com desfazer e ponto de restauração) | ✅ Fase 3 |
+| Inicialização (ativar/desativar como o Gerenciador de Tarefas) | ✅ Fase 3 |
+| Remoção de bloatware | Fase 3b |
 | Reparo (SFC, DISM, rede, BSOD) | Fase 4 |
 | Instalador, atualização automática, assinatura | Fase 5 |
 
@@ -25,6 +27,7 @@ src/
 ├── OtimizaPC.Core      → modelos, log, formatação, exportação de relatório
 ├── OtimizaPC.Hardware  → WMI, registro, Win32, sensores (LibreHardwareMonitor), verificações de saúde
 ├── OtimizaPC.Cleaning  → motor de limpeza (catálogo, varredura, remoção segura) e analisador de disco
+├── OtimizaPC.Tweaks    → otimizações reversíveis (registro, serviços, energia), ponto de restauração, inicialização
 └── OtimizaPC.App       → interface WPF (WPF-UI, MVVM com CommunityToolkit.Mvvm)
 tests/
 └── OtimizaPC.Tests     → testes do motor de limpeza (xUnit)
@@ -38,6 +41,14 @@ tests/
 - Arquivos em uso são mantidos, nunca forçados. Temporários com menos de 24 h são preservados.
 - Caches de apps (navegadores, Discord…) só são limpos com o app fechado.
 - Sempre há análise prévia e confirmação antes de apagar.
+
+## Regras das otimizações
+
+- Antes de alterar qualquer valor, o original é salvo em `%LocalAppData%\OtimizaPC\tweaks-undo.json` (gravação atômica).
+- Reverter restaura o valor original; se o app criou a chave, remove só o que ficou vazio (preserva valores de outros programas).
+- Sem registro de desfazer (ajuste feito fora do app), reverter volta ao padrão do Windows.
+- Cada otimização declara risco, versões do Windows suportadas e se exige reiniciar.
+- Todo o histórico de alterações fica em `%LocalAppData%\OtimizaPC\history.log`.
 
 ```bash
 dotnet test

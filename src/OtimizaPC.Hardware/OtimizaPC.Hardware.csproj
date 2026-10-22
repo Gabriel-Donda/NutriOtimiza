@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OtimizaPC.Core\OtimizaPC.Core.csproj" />
+    <ProjectReference Include="..\OtimizaPC.Tweaks\OtimizaPC.Tweaks.csproj" />
   </ItemGroup>
 
   <ItemGroup>

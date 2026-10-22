@@ -32,6 +32,12 @@
         <DataTemplate DataType="{x:Type vm:DiskAnalyzerViewModel}">
             <views:DiskAnalyzerView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OptimizationsViewModel}">
+            <views:OptimizationsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:StartupViewModel}">
+            <views:StartupView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ComingSoonViewModel}">
             <views:ComingSoonView />
         </DataTemplate>

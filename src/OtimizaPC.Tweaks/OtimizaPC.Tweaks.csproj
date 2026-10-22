@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>OtimizaPC.Tweaks</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OtimizaPC.Core\OtimizaPC.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Management" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceProcess" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OtimizaPC.Tests" />
+  </ItemGroup>
+
+</Project>

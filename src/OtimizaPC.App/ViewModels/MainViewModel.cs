@@ -46,15 +46,8 @@ namespace OtimizaPC.App.ViewModels
                 new NavItem("Sensores", SymbolRegular.Temperature24, new SensorsViewModel(sensors)),
                 new NavItem("Limpeza", SymbolRegular.Broom24, new CleanupViewModel(dialogs)),
                 new NavItem("Espaço em disco", SymbolRegular.DataPie24, new DiskAnalyzerViewModel()),
-                new NavItem("Otimizações", SymbolRegular.Flash24, new ComingSoonViewModel(
-                    "Otimizações", SymbolRegular.Flash24, 3,
-                    "Ajustes curados, com nível de risco, ponto de restauração e botão de desfazer.",
-                    "Programas e tarefas na inicialização",
-                    "Serviços com perfis (Gamer, Escritório, Notebook)",
-                    "Plano de energia e efeitos visuais",
-                    "Privacidade e telemetria",
-                    "Remoção de bloatware",
-                    "Ajustes de jogos e de rede")),
+                new NavItem("Otimizações", SymbolRegular.Flash24, new OptimizationsViewModel(dialogs)),
+                new NavItem("Inicialização", SymbolRegular.Rocket24, new StartupViewModel()),
                 new NavItem("Reparo", SymbolRegular.WrenchScrewdriver24, new ComingSoonViewModel(
                     "Reparo", SymbolRegular.WrenchScrewdriver24, 4,
                     "Ferramentas de diagnóstico e reparo do técnico em um só lugar.",
