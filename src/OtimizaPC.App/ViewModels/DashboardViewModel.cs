@@ -39,8 +39,11 @@ namespace OtimizaPC.App.ViewModels
         [ObservableProperty]
         private string _sensorMessage;
 
-        public DashboardViewModel(SensorService sensors, HardwareInfoService hardwareInfo, HealthService health)
+        public SensorSetupViewModel SensorSetup { get; }
+
+        public DashboardViewModel(SensorService sensors, HardwareInfoService hardwareInfo, HealthService health, SensorSetupViewModel sensorSetup)
         {
+            SensorSetup = sensorSetup;
             _sensors = sensors;
             _hardwareInfo = hardwareInfo;
             _health = health;
@@ -144,7 +147,7 @@ namespace OtimizaPC.App.ViewModels
                 UpdateDisk();
                 UpdateNetwork(network);
                 UpdateUptime();
-                UpdateSensorMessage(readings.Count);
+                UpdateSensorMessage(SensorPicker.CpuTemperature(readings).HasValue);
             }
             catch (Exception ex)
             {
@@ -219,23 +222,12 @@ namespace OtimizaPC.App.ViewModels
             Uptime.Status = uptime.TotalDays >= 14 ? HealthStatus.Warning : HealthStatus.Ok;
         }
 
-        private void UpdateSensorMessage(int readingCount)
+        private void UpdateSensorMessage(bool hasCpuTemperature)
         {
-            switch (_sensors.State)
-            {
-                case SensorServiceState.Failed:
-                    SensorMessage = "Não foi possível iniciar a leitura de sensores: " + _sensors.ErrorMessage;
-                    break;
-                case SensorServiceState.Ready when !AppInfo.IsAdministrator:
-                    SensorMessage = "Executando sem administrador: temperaturas e alguns sensores ficam indisponíveis.";
-                    break;
-                case SensorServiceState.Ready when readingCount > 0 && !SensorPicker.CpuTemperature(_sensors.Read()).HasValue:
-                    SensorMessage = "Temperatura da CPU indisponível. Ela exige o driver PawnIO (a instalação automática chega em breve).";
-                    break;
-                default:
-                    SensorMessage = null;
-                    break;
-            }
+            SensorSetup.RefreshInstalledState();
+            SensorMessage = SensorSetup.IsBusy ? SensorSetup.Status
+                : SensorAvailability.Message(_sensors.State, _sensors.ErrorMessage,
+                    AppInfo.IsAdministrator, SensorSetup.IsInstalled, hasCpuTemperature);
         }
     }
 }

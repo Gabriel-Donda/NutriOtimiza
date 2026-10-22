@@ -1,15 +1,13 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using Microsoft.Win32;
 using OtimizaPC.Hardware.Interop;
 
 namespace OtimizaPC.Hardware.Sensors
 {
-    /// <summary>
-    /// Driver PawnIO, exigido pela LibreHardwareMonitor para ler temperatura e clock da CPU.
-    /// Não é distribuído com o app: é instalado pelo winget (ou pelo site oficial).
-    /// </summary>
+    /// <summary>Instala e detecta o driver exigido para acessar os sensores da CPU.</summary>
     public static class PawnIo
     {
         public const string WingetId = "namazso.PawnIO";
@@ -20,18 +18,26 @@ namespace OtimizaPC.Hardware.Sensors
         private static string WingetPath =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WindowsApps\winget.exe");
 
-        /// <summary>Abre a instalação em uma janela visível (o usuário acompanha); sem winget, abre o site oficial.</summary>
-        public static void StartInstall()
+        /// <summary>Aguarda o winget e verifica o driver antes de informar sucesso.</summary>
+        public static async Task InstallAsync()
         {
-            if (File.Exists(WingetPath))
+            if (IsInstalled) return;
+            if (!File.Exists(WingetPath))
+                throw new InvalidOperationException("O winget não está disponível. Instale o PawnIO pelo site oficial e use Verificar sensores.");
+
+            using (var process = Process.Start(new ProcessStartInfo(WingetPath,
+                $"install --id {WingetId} --exact --source winget --silent --disable-interactivity --accept-source-agreements --accept-package-agreements")
             {
-                Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"\"{WingetPath}\" install --id {WingetId} -e --accept-source-agreements --accept-package-agreements & pause\"")
-                {
-                    UseShellExecute = true,
-                });
-                return;
+                UseShellExecute = true,
+                Verb = "runas",
+                WindowStyle = ProcessWindowStyle.Hidden,
+            }))
+            {
+                if (process == null) throw new InvalidOperationException("Não foi possível iniciar o instalador do PawnIO.");
+                await Task.Run(() => process.WaitForExit()).ConfigureAwait(false);
+                if (!IsInstalled)
+                    throw new InvalidOperationException($"O PawnIO não foi detectado após a instalação (código {process.ExitCode}). Tente novamente ou use o site oficial.");
             }
-            Process.Start(Website);
         }
     }
 }

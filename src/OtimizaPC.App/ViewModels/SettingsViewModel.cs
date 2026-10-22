@@ -77,11 +77,11 @@ namespace OtimizaPC.App.ViewModels
         [ObservableProperty]
         private string _cleanupStatus;
 
-        [ObservableProperty]
-        private bool _isPawnIoInstalled;
+        public SensorSetupViewModel SensorSetup { get; }
 
-        public SettingsViewModel(SettingsStore store, IDialogService dialogs)
+        public SettingsViewModel(SettingsStore store, IDialogService dialogs, SensorSetupViewModel sensorSetup)
         {
+            SensorSetup = sensorSetup;
             _store = store;
             _dialogs = dialogs;
             _settings = store.Load();
@@ -132,7 +132,7 @@ namespace OtimizaPC.App.ViewModels
 
         public void OnActivated()
         {
-            IsPawnIoInstalled = PawnIo.IsInstalled;
+            SensorSetup.RefreshInstalledState();
             _ = RefreshCleanupStateAsync();
             LoadHistory();
         }
@@ -363,19 +363,6 @@ namespace OtimizaPC.App.ViewModels
         }
 
         // ---------- Sensores ----------
-
-        [RelayCommand]
-        private void InstallPawnIo()
-        {
-            try
-            {
-                PawnIo.StartInstall();
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("Não foi possível iniciar a instalação do PawnIO: " + ex.Message);
-            }
-        }
 
         // ---------- Histórico ----------
 

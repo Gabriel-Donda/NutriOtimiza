@@ -23,6 +23,7 @@ namespace OtimizaPC.Hardware.Sensors
 
         private readonly object _sync = new object();
         private Computer _computer;
+        private bool _disposed;
         private Task _startTask;
         private DateTime _lastRead = DateTime.MinValue;
         private IReadOnlyList<SensorReading> _last = new SensorReading[0];
@@ -34,7 +35,29 @@ namespace OtimizaPC.Hardware.Sensors
         public Task StartAsync()
         {
             lock (_sync)
+            {
+                if (_disposed) throw new ObjectDisposedException(nameof(SensorService));
                 return _startTask ?? (_startTask = Task.Run(Open));
+            }
+        }
+
+        /// <summary>Reabre os sensores após instalar o driver, sem concorrer com leituras.</summary>
+        public async Task RestartAsync()
+        {
+            await StartAsync().ConfigureAwait(false);
+            Task restart;
+            lock (_sync)
+            {
+                if (_disposed) throw new ObjectDisposedException(nameof(SensorService));
+                _computer?.Close();
+                _computer = null;
+                _last = new SensorReading[0];
+                _lastRead = DateTime.MinValue;
+                ErrorMessage = null;
+                State = SensorServiceState.Starting;
+                restart = _startTask = Task.Run(Open);
+            }
+            await restart.ConfigureAwait(false);
         }
 
         private void Open()
@@ -55,6 +78,11 @@ namespace OtimizaPC.Hardware.Sensors
 
                 lock (_sync)
                 {
+                    if (_disposed)
+                    {
+                        computer.Close();
+                        return;
+                    }
                     _computer = computer;
                     State = SensorServiceState.Ready;
                 }
@@ -171,6 +199,7 @@ namespace OtimizaPC.Hardware.Sensors
         {
             lock (_sync)
             {
+                _disposed = true;
                 try
                 {
                     _computer?.Close();

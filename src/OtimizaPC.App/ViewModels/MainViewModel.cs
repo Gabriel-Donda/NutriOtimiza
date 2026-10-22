@@ -47,7 +47,8 @@ namespace OtimizaPC.App.ViewModels
 
         public MainViewModel(SensorService sensors, HardwareInfoService hardwareInfo, HealthService health, IDialogService dialogs, SettingsStore settingsStore)
         {
-            Settings = new SettingsViewModel(settingsStore, dialogs);
+            var sensorSetup = new SensorSetupViewModel(sensors);
+            Settings = new SettingsViewModel(settingsStore, dialogs, sensorSetup);
             Settings.UpdateFound += (_, __) =>
             {
                 var version = Settings.AvailableUpdate.Version.ToString(3);
@@ -58,7 +59,7 @@ namespace OtimizaPC.App.ViewModels
 
             NavItems = new ObservableCollection<NavItem>
             {
-                new NavItem("Painel", SymbolRegular.Home24, new DashboardViewModel(sensors, hardwareInfo, health)),
+                new NavItem("Painel", SymbolRegular.Home24, new DashboardViewModel(sensors, hardwareInfo, health, sensorSetup)),
                 new NavItem("Hardware", SymbolRegular.DeveloperBoard24, new HardwareViewModel(hardwareInfo)),
                 new NavItem("Sensores", SymbolRegular.Temperature24, new SensorsViewModel(sensors)),
                 new NavItem("Limpeza", SymbolRegular.Broom24, new CleanupViewModel(dialogs)),

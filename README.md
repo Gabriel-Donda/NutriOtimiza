@@ -118,6 +118,6 @@ O script roda o build, valida os `.sha256`, cria a tag `v{versão}` e a release 
 ## Observações
 
 - **Assinatura digital:** os executáveis não são assinados. Até haver um certificado de assinatura de código, o Windows SmartScreen mostra o aviso "O Windows protegeu o computador" na primeira execução, e alguns antivírus podem desconfiar, já que o app altera registro e serviços.
-- **Temperatura da CPU:** exige executar como administrador **e** ter o driver [PawnIO](https://pawnio.eu), exigência da LibreHardwareMonitor 0.9.5+. O app oferece a instalação em Configurações → Sensores.
+- **Temperatura da CPU:** exige executar como administrador **e** ter o driver [PawnIO](https://pawnio.eu). Use **Instalar PawnIO** no Painel ou **Configurações → Sensores → Instalar driver**. O app instala pelo winget, acompanha a conclusão e reabre os sensores sem fechar o aplicativo. A solicitação de administrador do Windows pode aparecer. Sem winget, use **Site oficial do PawnIO**, instale o driver e clique em **Verificar sensores**. Driver instalado sem leitura gera um aviso específico: alguns equipamentos não expõem a temperatura e podem exigir reiniciar o Windows.
 - **Versão x86:** só é instalada em Windows 32 bits. Em Windows 64 bits, os sensores exigem o processo 64 bits.
 - **Logs:** ficam em `%LocalAppData%\NutriOtimiza\logs`.

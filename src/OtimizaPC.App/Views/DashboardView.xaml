@@ -17,7 +17,19 @@
                 IsClosable="False"
                 IsOpen="{Binding HasSensorMessage, Mode=OneWay}"
                 Message="{Binding SensorMessage}"
-                Severity="Warning" />
+                Severity="Warning">
+                <StackPanel>
+                    <TextBlock Margin="0,4,0,8" Text="{Binding SensorSetup.Status}" TextWrapping="Wrap"
+                        Visibility="{Binding SensorSetup.Status, Converter={StaticResource NullToCollapsed}}" />
+                    <WrapPanel>
+                        <ui:Button Margin="0,0,8,4" Command="{Binding SensorSetup.InstallPawnIoCommand}" Content="Instalar PawnIO"
+                            Visibility="{Binding SensorSetup.IsInstalled, Converter={StaticResource InverseBoolToVisibility}}" />
+                        <ui:Button Margin="0,0,8,4" Command="{Binding SensorSetup.CheckSensorsCommand}" Content="Verificar sensores" />
+                        <ui:Button Margin="0,0,0,4" Command="{Binding SensorSetup.OpenPawnIoWebsiteCommand}" Content="Site oficial do PawnIO"
+                            Visibility="{Binding SensorSetup.IsInstalled, Converter={StaticResource InverseBoolToVisibility}}" />
+                    </WrapPanel>
+                </StackPanel>
+            </ui:InfoBar>
 
             <!-- Cartões de métricas -->
             <ItemsControl Margin="0,0,-12,0" ItemsSource="{Binding Cards}">

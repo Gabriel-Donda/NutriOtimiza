@@ -132,19 +132,20 @@
             <TextBlock Margin="0,16,0,8" Style="{StaticResource SectionTitle}" Text="Sensores" />
             <ui:Card Style="{StaticResource SettingCard}">
                 <DockPanel>
-                    <ui:Button
-                        Appearance="Secondary"
-                        Command="{Binding InstallPawnIoCommand}"
-                        Content="Instalar driver"
-                        DockPanel.Dock="Right"
-                        Icon="{ui:SymbolIcon ArrowDownload24}"
-                        Visibility="{Binding IsPawnIoInstalled, Converter={StaticResource InverseBoolToVisibility}}" />
+                    <StackPanel DockPanel.Dock="Right" Margin="12,0,0,0">
+                        <ui:Button Appearance="Secondary" Command="{Binding SensorSetup.InstallPawnIoCommand}" Content="Instalar driver"
+                            Icon="{ui:SymbolIcon ArrowDownload24}"
+                            Visibility="{Binding SensorSetup.IsInstalled, Converter={StaticResource InverseBoolToVisibility}}" />
+                        <ui:Button Margin="0,6,0,0" Command="{Binding SensorSetup.CheckSensorsCommand}" Content="Verificar sensores" />
+                        <ui:Button Margin="0,6,0,0" Command="{Binding SensorSetup.OpenPawnIoWebsiteCommand}" Content="Site oficial do PawnIO" />
+                    </StackPanel>
                     <StackPanel>
                         <TextBlock FontWeight="SemiBold" Text="Driver PawnIO (temperatura da CPU)" />
                         <TextBlock Style="{StaticResource SecondaryText}">
                             <Run Text="Necessário para ler temperatura e clock do processador. " />
-                            <Run Text="{Binding IsPawnIoInstalled, Mode=OneWay, Converter={StaticResource PawnIoStatus}}" />
+                            <Run Text="{Binding SensorSetup.IsInstalled, Mode=OneWay, Converter={StaticResource PawnIoStatus}}" />
                         </TextBlock>
+                        <TextBlock Margin="0,6,0,0" Style="{StaticResource SecondaryText}" Text="{Binding SensorSetup.Status}" TextWrapping="Wrap" />
                     </StackPanel>
                 </DockPanel>
             </ui:Card>
