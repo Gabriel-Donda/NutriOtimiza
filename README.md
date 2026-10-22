@@ -17,7 +17,7 @@ Requer o .NET Framework 4.8, que já vem no Windows 10 (1903+) e 11 e pode ser i
 | Otimizações (37 ajustes curados, com desfazer e ponto de restauração) | ✅ Fase 3 |
 | Inicialização (ativar/desativar como o Gerenciador de Tarefas) | ✅ Fase 3 |
 | Apps pré-instalados (remoção de bloatware com reinstalação) | ✅ Fase 3b |
-| Reparo (SFC, DISM, rede, BSOD) | Fase 4 |
+| Reparo (SFC, DISM, CHKDSK, rede, Windows Update, erros do sistema, telas azuis, drivers) | ✅ Fase 4 |
 | Instalador, atualização automática, assinatura | Fase 5 |
 
 ## Estrutura
@@ -27,7 +27,8 @@ src/
 ├── OtimizaPC.Core      → modelos, log, formatação, exportação de relatório
 ├── OtimizaPC.Hardware  → WMI, registro, Win32, sensores (LibreHardwareMonitor), verificações de saúde
 ├── OtimizaPC.Cleaning  → motor de limpeza (catálogo, varredura, remoção segura) e analisador de disco
-├── OtimizaPC.Tweaks    → otimizações reversíveis (registro, serviços, energia), ponto de restauração, inicialização
+├── OtimizaPC.Tweaks    → otimizações reversíveis (registro, serviços, energia), ponto de restauração, inicialização, apps
+├── OtimizaPC.Repair    → ferramentas de reparo com saída ao vivo, análise de eventos, telas azuis e drivers
 └── OtimizaPC.App       → interface WPF (WPF-UI, MVVM com CommunityToolkit.Mvvm)
 tests/
 └── OtimizaPC.Tests     → testes do motor de limpeza (xUnit)

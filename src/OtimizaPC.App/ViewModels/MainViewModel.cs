@@ -49,15 +49,7 @@ namespace OtimizaPC.App.ViewModels
                 new NavItem("Otimizações", SymbolRegular.Flash24, new OptimizationsViewModel(dialogs)),
                 new NavItem("Inicialização", SymbolRegular.Rocket24, new StartupViewModel()),
                 new NavItem("Apps pré-instalados", SymbolRegular.Apps24, new AppsViewModel(dialogs)),
-                new NavItem("Reparo", SymbolRegular.WrenchScrewdriver24, new ComingSoonViewModel(
-                    "Reparo", SymbolRegular.WrenchScrewdriver24, 4,
-                    "Ferramentas de diagnóstico e reparo do técnico em um só lugar.",
-                    "SFC, DISM e CHKDSK com saída ao vivo",
-                    "Reset do Windows Update e da pilha de rede",
-                    "Erros críticos do Visualizador de Eventos",
-                    "Análise de telas azuis (minidumps)",
-                    "Lista de drivers com data e status",
-                    "Ponto de restauração com um clique")),
+                new NavItem("Reparo", SymbolRegular.WrenchScrewdriver24, new RepairViewModel(dialogs)),
                 new NavItem("Configurações", SymbolRegular.Settings24, new ComingSoonViewModel(
                     "Configurações", SymbolRegular.Settings24, 5,
                     "Preferências do aplicativo.",

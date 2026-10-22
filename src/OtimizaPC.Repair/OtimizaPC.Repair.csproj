@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>OtimizaPC.Repair</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OtimizaPC.Core\OtimizaPC.Core.csproj" />
+    <ProjectReference Include="..\OtimizaPC.Hardware\OtimizaPC.Hardware.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.ServiceProcess" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OtimizaPC.Tests" />
+  </ItemGroup>
+
+</Project>

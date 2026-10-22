@@ -14,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\OtimizaPC.Cleaning\OtimizaPC.Cleaning.csproj" />
     <ProjectReference Include="..\..\src\OtimizaPC.Tweaks\OtimizaPC.Tweaks.csproj" />
+    <ProjectReference Include="..\..\src\OtimizaPC.Repair\OtimizaPC.Repair.csproj" />
   </ItemGroup>
 
 </Project>

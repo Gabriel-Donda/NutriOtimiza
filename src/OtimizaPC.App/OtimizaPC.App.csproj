@@ -23,6 +23,7 @@
     <ProjectReference Include="..\OtimizaPC.Hardware\OtimizaPC.Hardware.csproj" />
     <ProjectReference Include="..\OtimizaPC.Cleaning\OtimizaPC.Cleaning.csproj" />
     <ProjectReference Include="..\OtimizaPC.Tweaks\OtimizaPC.Tweaks.csproj" />
+    <ProjectReference Include="..\OtimizaPC.Repair\OtimizaPC.Repair.csproj" />
   </ItemGroup>
 
 </Project>

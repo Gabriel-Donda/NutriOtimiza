@@ -1,0 +1,117 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using OtimizaPC.Core;
+using OtimizaPC.Repair.Console;
+
+namespace OtimizaPC.Repair.Tools
+{
+    public sealed class RepairResult
+    {
+        public bool Success { get; set; }
+
+        public string Summary { get; set; }
+    }
+
+    /// <summary>Ferramenta de reparo com saída ao vivo (SFC, DISM, reset de rede etc.).</summary>
+    public abstract class RepairTool
+    {
+        protected RepairTool(string id, string name, string description, string group)
+        {
+            Id = id;
+            Name = name;
+            Description = description;
+            Group = group;
+        }
+
+        public string Id { get; }
+
+        public string Name { get; }
+
+        public string Description { get; }
+
+        public string Group { get; }
+
+        public bool RequiresAdmin { get; set; } = true;
+
+        /// <summary>Texto como "5 a 15 minutos".</summary>
+        public string Duration { get; set; }
+
+        public bool RequiresRestart { get; set; }
+
+        /// <summary>Interromper no meio pode deixar o sistema num estado incompleto.</summary>
+        public bool UnsafeToCancel { get; set; }
+
+        /// <summary>Altera o sistema de forma perceptível (ex.: derruba a rede): pede confirmação antes.</summary>
+        public bool NeedsConfirmation { get; set; }
+
+        public abstract Task<RepairResult> RunAsync(Action<OutputLine> output, CancellationToken cancellationToken);
+
+        protected static string System32(string tool) => Path.Combine(Environment.SystemDirectory, tool);
+    }
+
+    public sealed class CommandStep
+    {
+        public CommandStep(string tool, string arguments, string title = null)
+        {
+            Tool = tool;
+            Arguments = Environment.ExpandEnvironmentVariables(arguments);
+            Title = title;
+        }
+
+        public string Tool { get; }
+
+        public string Arguments { get; }
+
+        public string Title { get; }
+
+        /// <summary>Códigos de saída considerados sucesso (padrão: só 0).</summary>
+        public int[] SuccessCodes { get; set; } = { 0 };
+    }
+
+    /// <summary>Ferramenta formada por uma sequência de comandos do System32.</summary>
+    public sealed class CommandTool : RepairTool
+    {
+        private readonly IReadOnlyList<CommandStep> _steps;
+        private readonly Func<IReadOnlyList<string>, bool, string> _summarize;
+
+        public CommandTool(string id, string name, string description, string group, IReadOnlyList<CommandStep> steps,
+            Func<IReadOnlyList<string>, bool, string> summarize = null)
+            : base(id, name, description, group)
+        {
+            _steps = steps;
+            _summarize = summarize;
+        }
+
+        public override async Task<RepairResult> RunAsync(Action<OutputLine> output, CancellationToken cancellationToken)
+        {
+            var allLines = new List<string>();
+            var success = true;
+
+            foreach (var step in _steps)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                output(new OutputLine($"> {step.Title ?? step.Tool} {step.Arguments}", false));
+
+                var code = await ProcessStreamer.RunAsync(System32(step.Tool), step.Arguments, line =>
+                {
+                    if (!line.IsProgress)
+                        lock (allLines) allLines.Add(line.Text);
+                    output(line);
+                }, cancellationToken).ConfigureAwait(false);
+
+                var ok = Array.IndexOf(step.SuccessCodes, code) >= 0;
+                output(new OutputLine(ok ? $"Concluído (código {code})." : $"Terminou com código {code}.", false, !ok));
+                output(new OutputLine(string.Empty, false));
+                success &= ok;
+            }
+
+            var summary = _summarize?.Invoke(allLines, success)
+                          ?? (success ? "Concluído sem erros." : "Terminou com erros. Veja a saída acima.");
+            History.Record("Reparo", $"{Name}: {summary}");
+            return new RepairResult { Success = success, Summary = summary };
+        }
+    }
+}

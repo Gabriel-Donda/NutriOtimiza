@@ -41,6 +41,9 @@
         <DataTemplate DataType="{x:Type vm:AppsViewModel}">
             <views:AppsView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RepairViewModel}">
+            <views:RepairView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ComingSoonViewModel}">
             <views:ComingSoonView />
         </DataTemplate>
