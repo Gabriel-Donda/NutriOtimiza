@@ -20,8 +20,15 @@ namespace OtimizaPC.Core.Settings
 
         [DataMember] public bool CheckUpdatesOnStartup { get; set; } = true;
 
-        /// <summary>Repositório do GitHub com as versões publicadas ("dono/nome"). Vazio = atualização desativada.</summary>
+        /// <summary>Baixa a nova versão em segundo plano e instala ao fechar o app, sem perguntar.</summary>
+        [DataMember] public bool AutoInstallUpdates { get; set; } = true;
+
+        /// <summary>Repositório do GitHub com as versões publicadas ("dono/nome"). Vazio = usa o repositório embutido no app.</summary>
         [DataMember] public string UpdateRepository { get; set; } = string.Empty;
+
+        /// <summary>Repositório efetivo: o configurado ou, se vazio, o embutido no app.</summary>
+        public string EffectiveUpdateRepository =>
+            string.IsNullOrWhiteSpace(UpdateRepository) ? AppInfo.DefaultUpdateRepository : UpdateRepository.Trim();
 
         [DataMember] public DateTime? LastUpdateCheck { get; set; }
 
@@ -31,6 +38,7 @@ namespace OtimizaPC.Core.Settings
         {
             Theme = ThemePreference.Dark;
             CheckUpdatesOnStartup = true;
+            AutoInstallUpdates = true;
             UpdateRepository = string.Empty;
         }
     }

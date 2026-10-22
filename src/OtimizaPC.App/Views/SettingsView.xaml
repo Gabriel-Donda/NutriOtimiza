@@ -52,7 +52,7 @@
                             <ui:Button
                                 Appearance="Primary"
                                 Command="{Binding InstallUpdateCommand}"
-                                Content="Baixar e instalar"
+                                Content="Atualizar agora"
                                 Icon="{ui:SymbolIcon ArrowDownload24}"
                                 Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVisibility}}" />
                         </StackPanel>
@@ -80,7 +80,16 @@
                     <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding CheckUpdatesOnStartup}" />
                     <StackPanel>
                         <TextBlock FontWeight="SemiBold" Text="Verificar ao abrir o app" />
-                        <TextBlock Style="{StaticResource SecondaryText}" Text="Um aviso aparece no topo quando houver versão nova. Nada é instalado sem você confirmar." />
+                        <TextBlock Style="{StaticResource SecondaryText}" Text="Um aviso aparece no topo quando houver versão nova. Também verifica a cada 6 horas." />
+                    </StackPanel>
+                </DockPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource SettingCard}">
+                <DockPanel>
+                    <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding AutoInstallUpdates}" />
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Instalar atualizações automaticamente" />
+                        <TextBlock Style="{StaticResource SecondaryText}" Text="A nova versão é baixada em segundo plano e instalada quando você fechar o app." />
                     </StackPanel>
                 </DockPanel>
             </ui:Card>
@@ -89,11 +98,11 @@
                     <ui:TextBox
                         Width="260"
                         DockPanel.Dock="Right"
-                        PlaceholderText="dono/repositório"
+                        PlaceholderText="{Binding RepositoryPlaceholder}"
                         Text="{Binding UpdateRepository, UpdateSourceTrigger=LostFocus}" />
                     <StackPanel>
                         <TextBlock FontWeight="SemiBold" Text="Repositório de versões (GitHub)" />
-                        <TextBlock Style="{StaticResource SecondaryText}" Text="Onde as versões são publicadas. Cada versão deve ter o instalador e o arquivo .sha256 correspondente." />
+                        <TextBlock Style="{StaticResource SecondaryText}" Text="Deixe vazio para usar o repositório oficial. Cada versão deve ter o instalador e o arquivo .sha256 correspondente." />
                     </StackPanel>
                 </DockPanel>
             </ui:Card>

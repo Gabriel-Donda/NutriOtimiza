@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Xml.Linq;
 using OtimizaPC.Cleaning;
+using OtimizaPC.Core;
 using OtimizaPC.Core.Settings;
 using OtimizaPC.Core.Updates;
 using Xunit;
@@ -121,6 +122,13 @@ namespace OtimizaPC.Tests
             {
                 if (File.Exists(file)) File.Delete(file);
             }
+        }
+
+        [Fact]
+        public void RepositorioEfetivo_VazioUsaPadraoEPreenchidoUsaValorAparado()
+        {
+            Assert.Equal(AppInfo.DefaultUpdateRepository, new AppSettings { UpdateRepository = "   " }.EffectiveUpdateRepository);
+            Assert.Equal("a/b", new AppSettings { UpdateRepository = "  a/b " }.EffectiveUpdateRepository);
         }
 
         [Fact]

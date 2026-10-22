@@ -70,7 +70,7 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 
 [Run]
 ; Também roda após atualização silenciosa, reabrindo o app
-Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall shellexec
+Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall shellexec; Check: ShouldLaunchApp
 
 [UninstallRun]
 ; Remove a tarefa de limpeza automática, se tiver sido criada
@@ -86,6 +86,17 @@ var
 begin
   Result := RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', Release)
             and (Release >= DotNet48Release);
+end;
+
+// Atualização ao fechar o app passa /NOLAUNCH para não reabri-lo
+function ShouldLaunchApp: Boolean;
+var
+  I: Integer;
+begin
+  Result := True;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), '/NOLAUNCH') = 0 then
+      Result := False;
 end;
 
 function InitializeSetup: Boolean;

@@ -9,6 +9,12 @@ namespace OtimizaPC.Core
     {
         public const string Name = "NutriOtimiza";
 
+        /// <summary>
+        /// Repositório do GitHub com as versões publicadas ("dono/nome"), usado quando as configurações não indicam outro.
+        /// Embutido no app para que as máquinas instaladas se atualizem sem nenhuma configuração.
+        /// </summary>
+        public const string DefaultUpdateRepository = "Gabriel-Donda/NutriOtimiza";
+
         public static string Version => typeof(AppInfo).Assembly.GetName().Version.ToString(3);
 
         /// <summary>Pasta de dados do app (%LocalAppData%\NutriOtimiza).</summary>

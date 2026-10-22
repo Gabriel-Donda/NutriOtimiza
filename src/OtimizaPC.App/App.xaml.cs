@@ -19,6 +19,7 @@ namespace OtimizaPC.App
     public partial class App : Application
     {
         private SensorService _sensors;
+        private MainViewModel _viewModel;
 
         private const string InstanceMutexName = @"Local\NutriOtimiza.InstanciaUnica";
         private Mutex _instanceMutex;
@@ -49,20 +50,22 @@ namespace OtimizaPC.App
             _sensors = new SensorService();
             _ = _sensors.StartAsync();
 
-            var viewModel = new MainViewModel(
+            _viewModel = new MainViewModel(
                 _sensors,
                 new HardwareInfoService(_sensors),
                 new HealthService(_sensors),
                 new DialogService(),
                 settings);
 
-            MainWindow = new MainWindow { DataContext = viewModel };
+            MainWindow = new MainWindow { DataContext = _viewModel };
             MainWindow.Show();
-            _ = viewModel.CheckForUpdatesOnStartupAsync();
+            _ = _viewModel.CheckForUpdatesOnStartupAsync();
         }
 
         protected override void OnExit(ExitEventArgs e)
         {
+            // Instala a atualização já baixada, sem reabrir o app
+            _viewModel?.Settings.InstallPendingOnExit();
             _sensors?.Dispose();
             _instanceMutex?.Dispose();
             Log.Info("Aplicativo encerrado.");

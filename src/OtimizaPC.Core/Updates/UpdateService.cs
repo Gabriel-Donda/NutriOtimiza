@@ -165,11 +165,15 @@ namespace OtimizaPC.Core.Updates
             return target;
         }
 
-        /// <summary>Executa o instalador em modo silencioso; ele fecha este app, atualiza e o abre de novo.</summary>
-        public static void LaunchInstaller(string installerPath)
+        /// <summary>
+        /// Executa o instalador em modo silencioso. Com <paramref name="relaunch"/>, o app é reaberto ao final
+        /// ("Atualizar agora"); sem, a atualização acontece discretamente depois que o usuário fechou o app.
+        /// </summary>
+        public static void LaunchInstaller(string installerPath, bool relaunch)
         {
-            History.Record("Atualização", "Instalando " + Path.GetFileName(installerPath));
-            Process.Start(new ProcessStartInfo(installerPath, "/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS") { UseShellExecute = true });
+            History.Record("Atualização", "Instalando " + Path.GetFileName(installerPath) + (relaunch ? string.Empty : " ao fechar o app"));
+            var arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS" + (relaunch ? string.Empty : " /NOLAUNCH");
+            Process.Start(new ProcessStartInfo(installerPath, arguments) { UseShellExecute = true });
         }
 
         /// <summary>Formato do sha256sum: "hash  nome-do-arquivo" (ou só o hash).</summary>

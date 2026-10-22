@@ -105,13 +105,15 @@ A versão vem de `<Version>` em `Directory.Build.props`.
 
 ## Publicar uma versão (atualização automática)
 
-O app verifica atualizações no GitHub Releases do repositório informado em **Configurações → Repositório de versões** (formato `dono/repositório`).
+As máquinas com o app instalado verificam o GitHub Releases ao abrir e a cada 6 horas. Quando há versão nova, o app baixa o instalador em segundo plano, confere o SHA-256 e instala ao fechar.
 
-1. Aumente `<Version>` em `Directory.Build.props` e rode `tools/build.ps1`.
-2. Crie uma release no GitHub com a tag `v{versão}` (ex.: `v1.1.0`).
-3. Anexe os instaladores **e** os respectivos `.sha256`. Sem o `.sha256`, o app recusa a atualização.
+Para publicar:
 
-O app baixa o instalador da sua arquitetura, confere o SHA-256, instala em modo silencioso e se reabre.
+1. Aumente `<Version>` em `Directory.Build.props`.
+2. Faça commit e push.
+3. Rode `pwsh tools/release.ps1` (opcional: `-Notes "texto"`; use `-DryRun` para simular sem alterar nada).
+
+O script roda o build, valida os `.sha256`, cria a tag `v{versão}` e a release com os instaladores, portáteis e checksums. O repositório precisa ser **público** para a atualização funcionar sem senha.
 
 ## Observações
 

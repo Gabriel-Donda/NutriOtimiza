@@ -49,7 +49,12 @@ namespace OtimizaPC.App.ViewModels
         {
             Settings = new SettingsViewModel(settingsStore, dialogs);
             Settings.UpdateFound += (_, __) =>
-                UpdateBanner = $"A versão {Settings.AvailableUpdate.Version.ToString(3)} do {AppInfo.Name} está disponível.";
+            {
+                var version = Settings.AvailableUpdate.Version.ToString(3);
+                UpdateBanner = Settings.IsUpdateReady
+                    ? $"A versão {version} foi baixada e será instalada quando você fechar o {AppInfo.Name}."
+                    : $"A versão {version} do {AppInfo.Name} está disponível.";
+            };
 
             NavItems = new ObservableCollection<NavItem>
             {
@@ -80,6 +85,12 @@ namespace OtimizaPC.App.ViewModels
         {
             UpdateBanner = null;
             SelectedItem = NavItems.First(n => n.Page == Settings);
+        }
+
+        [RelayCommand]
+        private void UpdateNow()
+        {
+            if (Settings.InstallUpdateCommand.CanExecute(null)) Settings.InstallUpdateCommand.Execute(null);
         }
 
         [RelayCommand]
