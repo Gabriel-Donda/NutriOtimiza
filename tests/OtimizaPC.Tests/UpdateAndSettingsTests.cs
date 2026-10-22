@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
@@ -15,10 +15,10 @@ namespace OtimizaPC.Tests
             ""tag_name"": ""v1.2.0"", ""body"": ""Novidades"", ""html_url"": ""https://github.com/x/y/releases/tag/v1.2.0"",
             ""draft"": false, ""prerelease"": false,
             ""assets"": [
-                { ""name"": ""OtimizaPC-Setup-1.2.0-x64.exe"", ""browser_download_url"": ""https://example/x64.exe"" },
-                { ""name"": ""OtimizaPC-Setup-1.2.0-x64.exe.sha256"", ""browser_download_url"": ""https://example/x64.sha"" },
-                { ""name"": ""OtimizaPC-Setup-1.2.0-x86.exe"", ""browser_download_url"": ""https://example/x86.exe"" },
-                { ""name"": ""OtimizaPC-Portable-1.2.0-x64.zip"", ""browser_download_url"": ""https://example/zip"" }
+                { ""name"": ""NutriOtimiza-Setup-1.2.0-x64.exe"", ""browser_download_url"": ""https://example/x64.exe"" },
+                { ""name"": ""NutriOtimiza-Setup-1.2.0-x64.exe.sha256"", ""browser_download_url"": ""https://example/x64.sha"" },
+                { ""name"": ""NutriOtimiza-Setup-1.2.0-x86.exe"", ""browser_download_url"": ""https://example/x86.exe"" },
+                { ""name"": ""NutriOtimiza-Portable-1.2.0-x64.zip"", ""browser_download_url"": ""https://example/zip"" }
             ] }";
 
         [Fact]
@@ -58,7 +58,7 @@ namespace OtimizaPC.Tests
         [Theory]
         [InlineData("v1.2.3", "1.2.3.0")]
         [InlineData("1.2", "1.2.0.0")]
-        [InlineData("OtimizaPC 2.0.1", "2.0.1.0")]
+        [InlineData("NutriOtimiza 2.0.1", "2.0.1.0")]
         public void Versao_InterpretaTags(string tag, string expected)
         {
             Assert.Equal(Version.Parse(expected), UpdateService.ParseVersion(tag));
@@ -68,7 +68,7 @@ namespace OtimizaPC.Tests
         public void Checksum_AceitaFormatoSha256sumERejeitaInvalido()
         {
             var hash = new string('a', 64);
-            Assert.Equal(hash, UpdateService.ParseChecksum(hash.ToUpperInvariant() + "  OtimizaPC-Setup-1.2.0-x64.exe\n"));
+            Assert.Equal(hash, UpdateService.ParseChecksum(hash.ToUpperInvariant() + "  NutriOtimiza-Setup-1.2.0-x64.exe\n"));
             Assert.Throws<InvalidOperationException>(() => UpdateService.ParseChecksum("não é um hash"));
         }
 
@@ -127,10 +127,10 @@ namespace OtimizaPC.Tests
         public void TarefaAgendada_XmlValidoComArgumentoEProximoDomingo()
         {
             var wednesday = new DateTime(2026, 10, 21, 9, 0, 0);
-            var xml = XDocument.Parse(ScheduledCleanup.BuildTaskXml(@"C:\Program Files\OtimizaPC\OtimizaPC.exe", wednesday));
+            var xml = XDocument.Parse(ScheduledCleanup.BuildTaskXml(@"C:\Program Files\NutriOtimiza\NutriOtimiza.exe", wednesday));
             XNamespace ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
 
-            Assert.Equal(@"C:\Program Files\OtimizaPC\OtimizaPC.exe", xml.Descendants(ns + "Command").Single().Value);
+            Assert.Equal(@"C:\Program Files\NutriOtimiza\NutriOtimiza.exe", xml.Descendants(ns + "Command").Single().Value);
             Assert.Equal(AutoCleanup.Argument, xml.Descendants(ns + "Arguments").Single().Value);
             Assert.Equal("2026-10-25T12:00:00", xml.Descendants(ns + "StartBoundary").Single().Value);
             Assert.Equal("true", xml.Descendants(ns + "StartWhenAvailable").Single().Value);

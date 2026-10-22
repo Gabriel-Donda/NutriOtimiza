@@ -34,11 +34,12 @@ namespace OtimizaPC.Core.Reports
             sb.Append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
             sb.Append("<title>Relatório de hardware — ").Append(E(report.MachineName)).Append("</title>");
             sb.Append("<style>");
-            sb.Append(":root{--bg:#f5f6f8;--card:#fff;--text:#1b1f24;--muted:#5f6b7a;--line:#e3e6ea;--accent:#0067c0}");
-            sb.Append("@media (prefers-color-scheme:dark){:root{--bg:#1c1c1c;--card:#262626;--text:#f0f0f0;--muted:#a8b0ba;--line:#3a3a3a;--accent:#4cc2ff}}");
+            // Cores da Nutriport: laranja de destaque; no escuro, fundo grafite e títulos dourados
+            sb.Append(":root{--bg:#f5f5f3;--card:#fff;--text:#202020;--muted:#5f5f5a;--line:#e5e3dc;--accent:#c4621a;--brand:#202020}");
+            sb.Append("@media (prefers-color-scheme:dark){:root{--bg:#202020;--card:#2b2b2b;--text:#f0f0f0;--muted:#b0aea4;--line:#3a3a3a;--accent:#f58634;--brand:#d2c068}}");
             sb.Append("*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 'Segoe UI',system-ui,sans-serif}");
             sb.Append("main{max-width:960px;margin:0 auto;padding:32px 16px}");
-            sb.Append("header{margin-bottom:24px}h1{margin:0;font-size:26px}header p{margin:4px 0 0;color:var(--muted)}");
+            sb.Append("header{margin-bottom:24px;border-bottom:4px solid var(--accent);padding-bottom:12px}h1{margin:0;font-size:26px;color:var(--brand)}header p{margin:4px 0 0;color:var(--muted)}");
             sb.Append("section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:16px;break-inside:avoid}");
             sb.Append("h2{margin:0 0 10px;font-size:18px;color:var(--accent)}h3{margin:14px 0 4px;font-size:14px}");
             sb.Append("table{width:100%;border-collapse:collapse}td{padding:5px 0;border-bottom:1px solid var(--line);vertical-align:top}");

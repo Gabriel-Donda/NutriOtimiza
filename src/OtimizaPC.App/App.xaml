@@ -12,6 +12,12 @@
                 <ui:ControlsDictionary />
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- Identidade visual da Nutriport (BrandTitleBrush é ajustado por tema no ThemeService) -->
+            <SolidColorBrush x:Key="BrandGoldBrush" Color="#D2C068" />
+            <SolidColorBrush x:Key="BrandOrangeBrush" Color="#F58634" />
+            <SolidColorBrush x:Key="BrandGraphiteBrush" Color="#202020" />
+            <SolidColorBrush x:Key="BrandTitleBrush" Color="#D2C068" />
+
             <!-- Cores de status (legíveis nos temas claro e escuro) -->
             <SolidColorBrush x:Key="StatusOkBrush" Color="#2EA043" />
             <SolidColorBrush x:Key="StatusInfoBrush" Color="#4C8EDA" />
@@ -30,8 +36,8 @@
 
             <Style x:Key="PageTitle" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="28" />
-                <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                <Setter Property="FontWeight" Value="Bold" />
+                <Setter Property="Foreground" Value="{DynamicResource BrandTitleBrush}" />
             </Style>
 
             <Style x:Key="PageSubtitle" TargetType="TextBlock">

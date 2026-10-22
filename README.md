@@ -1,6 +1,8 @@
-# OtimizaPC
+# NutriOtimiza
 
-Aplicativo de otimização, limpeza e diagnóstico para Windows, pensado para técnicos e usuários avançados.
+Aplicativo de otimização, limpeza e diagnóstico para Windows da **Nutriport**, pensado para a equipe técnica e as máquinas da empresa.
+
+> Os projetos e namespaces do código mantêm o nome interno `OtimizaPC.*`; o nome exibido, o executável (`NutriOtimiza.exe`) e o instalador usam **NutriOtimiza**.
 
 **Compatibilidade:** Windows 8.1, 10, 11 e Windows Server 2012 R2 ou superior, em x64 (e x86 para Windows 32 bits).
 Requer o .NET Framework 4.8, que já vem no Windows 10 (1903+) e 11 e pode ser instalado no 8.1 / 2012 R2.
@@ -32,8 +34,9 @@ src/
 ├── OtimizaPC.Repair    → ferramentas de reparo com saída ao vivo, eventos, telas azuis e drivers
 └── OtimizaPC.App       → interface WPF (WPF-UI, MVVM com CommunityToolkit.Mvvm)
 tests/OtimizaPC.Tests   → testes automatizados (xUnit)
-installer/              → script do instalador (Inno Setup 6)
-tools/                  → build dos pacotes e geração do ícone
+installer/              → script e imagens do instalador (Inno Setup 6)
+tools/                  → build dos pacotes e geração dos recursos da marca
+branding/               → logo original da Nutriport
 ```
 
 ## Regras de segurança da limpeza
@@ -47,11 +50,25 @@ tools/                  → build dos pacotes e geração do ícone
 
 ## Regras das otimizações
 
-- Antes de alterar qualquer valor, o original é salvo em `%LocalAppData%\OtimizaPC\tweaks-undo.json` (gravação atômica).
+- Antes de alterar qualquer valor, o original é salvo em `%LocalAppData%\NutriOtimiza\tweaks-undo.json` (gravação atômica).
 - Reverter restaura o valor original; se o app criou a chave, remove só o que ficou vazio (preserva valores de outros programas).
 - Sem registro de desfazer (ajuste feito fora do app), reverter volta ao padrão do Windows.
 - Cada otimização declara risco, versões do Windows suportadas e se exige reiniciar.
-- Todo o histórico de alterações fica em `%LocalAppData%\OtimizaPC\history.log` e aparece em Configurações.
+- Todo o histórico de alterações fica em `%LocalAppData%\NutriOtimiza\history.log` e aparece em Configurações.
+
+## Identidade visual (Nutriport)
+
+| Cor | Hex | Uso |
+|---|---|---|
+| Grafite | `#202020` | Fundo do tema escuro (padrão) e do ícone |
+| Dourado | `#D2C068` | Títulos no tema escuro, "Nutri" da marca |
+| Laranja | `#F58634` | Cor de destaque: botões, seleção, gráficos |
+
+O ícone do app e as imagens do instalador são gerados a partir de `branding/nutriport-logo.png`:
+
+```bash
+pwsh tools/generate-brand-assets.ps1
+```
 
 ## Desenvolvimento
 
@@ -65,7 +82,7 @@ dotnet build
 dotnet test
 ```
 
-O executável de desenvolvimento fica em `src/OtimizaPC.App/bin/Debug/net48/win-x64/OtimizaPC.exe`.
+O executável de desenvolvimento fica em `src/OtimizaPC.App/bin/Debug/net48/win-x64/NutriOtimiza.exe`.
 
 - **Debug** roda sem pedir administrador. Temperaturas e itens do sistema ficam indisponíveis.
 - **Release** pede elevação (UAC), necessária para limpeza do sistema, otimizações e reparos.
@@ -80,11 +97,11 @@ pwsh tools/build.ps1
 
 Roda os testes e gera em `artifacts/`, para x64 e x86:
 
-- `OtimizaPC-Setup-{versão}-{arq}.exe`: instalador (Program Files, menu Iniciar, desinstalação).
-- `OtimizaPC-Portable-{versão}-{arq}.zip`: versão portátil para pendrive de técnico.
+- `NutriOtimiza-Setup-{versão}-{arq}.exe`: instalador (Program Files, menu Iniciar, desinstalação).
+- `NutriOtimiza-Portable-{versão}-{arq}.zip`: versão portátil para pendrive de técnico.
 - Um `.sha256` para cada arquivo.
 
-A versão vem de `<Version>` em `Directory.Build.props`. O ícone é gerado por `tools/generate-icon.ps1`.
+A versão vem de `<Version>` em `Directory.Build.props`.
 
 ## Publicar uma versão (atualização automática)
 
@@ -101,4 +118,4 @@ O app baixa o instalador da sua arquitetura, confere o SHA-256, instala em modo 
 - **Assinatura digital:** os executáveis não são assinados. Até haver um certificado de assinatura de código, o Windows SmartScreen mostra o aviso "O Windows protegeu o computador" na primeira execução, e alguns antivírus podem desconfiar, já que o app altera registro e serviços.
 - **Temperatura da CPU:** exige executar como administrador **e** ter o driver [PawnIO](https://pawnio.eu), exigência da LibreHardwareMonitor 0.9.5+. O app oferece a instalação em Configurações → Sensores.
 - **Versão x86:** só é instalada em Windows 32 bits. Em Windows 64 bits, os sensores exigem o processo 64 bits.
-- **Logs:** ficam em `%LocalAppData%\OtimizaPC\logs`.
+- **Logs:** ficam em `%LocalAppData%\NutriOtimiza\logs`.

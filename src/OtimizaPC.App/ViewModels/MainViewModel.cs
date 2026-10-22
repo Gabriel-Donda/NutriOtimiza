@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -49,7 +49,7 @@ namespace OtimizaPC.App.ViewModels
         {
             Settings = new SettingsViewModel(settingsStore, dialogs);
             Settings.UpdateFound += (_, __) =>
-                UpdateBanner = $"A versão {Settings.AvailableUpdate.Version.ToString(3)} do OtimizaPC está disponível.";
+                UpdateBanner = $"A versão {Settings.AvailableUpdate.Version.ToString(3)} do {AppInfo.Name} está disponível.";
 
             NavItems = new ObservableCollection<NavItem>
             {

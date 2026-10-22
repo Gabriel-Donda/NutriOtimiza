@@ -1,4 +1,4 @@
-; Instalador do OtimizaPC (Inno Setup 6)
+; Instalador do NutriOtimiza (Inno Setup 6)
 ; Gerado pelo tools\build.ps1, que passa AppVersion, Arch (x64/x86) e SourceDir.
 
 #ifndef AppVersion
@@ -11,17 +11,20 @@
   #define SourceDir "..\artifacts\publish\" + Arch
 #endif
 
-#define AppName "OtimizaPC"
-#define AppExe "OtimizaPC.exe"
+#define AppName "NutriOtimiza"
+#define AppExe "NutriOtimiza.exe"
+#define AppPublisher "Nutriport"
 
 [Setup]
 ; AppId fixo: identifica o app entre versões (atualizar = substituir a instalação existente)
-AppId={{8F3C2A51-6B7D-4E2F-9A1C-5D4E3B2A1F00}
+AppId={{4406D961-764D-4431-95DC-A8C890516474}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
-AppPublisher={#AppName}
+AppPublisher={#AppPublisher}
+AppCopyright=© 2026 {#AppPublisher}
 VersionInfoVersion={#AppVersion}
+VersionInfoCompany={#AppPublisher}
 VersionInfoDescription=Instalador do {#AppName}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
@@ -32,9 +35,14 @@ OutputBaseFilename={#AppName}-Setup-{#AppVersion}-{#Arch}
 SetupIconFile=..\src\OtimizaPC.App\Assets\app.ico
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName}
+; Identidade visual da Nutriport (gerada por tools\generate-brand-assets.ps1)
+WizardStyle=modern
+WizardImageFile=wizard-large.bmp,wizard-large-2x.bmp
+WizardSmallImageFile=wizard-small.bmp,wizard-small-2x.bmp
+WizardImageStretch=no
+WizardImageBackColor=$202020
 Compression=lzma2/max
 SolidCompression=yes
-WizardStyle=modern
 ; Windows 8.1 / Server 2012 R2 ou superior
 MinVersion=6.3
 CloseApplications=yes
@@ -51,7 +59,7 @@ ArchitecturesAllowed=x86os
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -66,7 +74,7 @@ Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags
 
 [UninstallRun]
 ; Remove a tarefa de limpeza automática, se tiver sido criada
-Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /TN ""OtimizaPC\LimpezaAutomatica"" /F"; Flags: runhidden; RunOnceId: "RemoverTarefaLimpeza"
+Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /TN ""NutriOtimiza\LimpezaAutomatica"" /F"; Flags: runhidden; RunOnceId: "RemoverTarefaLimpeza"
 
 [Code]
 const

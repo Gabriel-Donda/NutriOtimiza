@@ -5,14 +5,15 @@
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     xmlns:views="clr-namespace:OtimizaPC.App.Views"
     xmlns:vm="clr-namespace:OtimizaPC.App.ViewModels"
-    Title="OtimizaPC"
+    Title="NutriOtimiza"
     Icon="pack://application:,,,/Assets/app.ico"
     Width="1280"
     Height="820"
     MinWidth="980"
     MinHeight="620"
     ExtendsContentIntoTitleBar="True"
-    WindowBackdropType="Mica"
+    Background="{DynamicResource ApplicationBackgroundBrush}"
+    WindowBackdropType="None"
     WindowCornerPreference="Round"
     WindowStartupLocation="CenterScreen">
 
@@ -56,7 +57,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Title="OtimizaPC" Grid.Row="0">
+        <ui:TitleBar Title="NutriOtimiza · Nutriport" Grid.Row="0">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon Source="pack://application:,,,/Assets/app-256.png" />
             </ui:TitleBar.Icon>
@@ -70,6 +71,27 @@
 
             <!-- Menu lateral -->
             <DockPanel Grid.Column="0" Margin="8,4,8,12">
+                <!-- Marca -->
+                <StackPanel
+                    Margin="10,4,10,14"
+                    DockPanel.Dock="Top"
+                    Orientation="Horizontal">
+                    <Image
+                        Width="44"
+                        Height="44"
+                        RenderOptions.BitmapScalingMode="HighQuality"
+                        Source="pack://application:,,,/Assets/app-256.png" />
+                    <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                        <TextBlock FontSize="20" FontWeight="Bold">
+                            <Run Foreground="{DynamicResource BrandTitleBrush}" Text="Nutri" /><Run Foreground="{DynamicResource BrandOrangeBrush}" Text="Otimiza" />
+                        </TextBlock>
+                        <TextBlock
+                            FontSize="11"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="por Nutriport" />
+                    </StackPanel>
+                </StackPanel>
+
                 <StackPanel Margin="12,8" DockPanel.Dock="Bottom">
                     <StackPanel Orientation="Horizontal">
                         <ui:SymbolIcon

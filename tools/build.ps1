@@ -1,5 +1,5 @@
-# Gera os pacotes de distribuição do OtimizaPC em artifacts\:
-#   OtimizaPC-Setup-{versão}-{x64|x86}.exe (+ .sha256) e OtimizaPC-Portable-{versão}-{x64|x86}.zip (+ .sha256)
+﻿# Gera os pacotes de distribuição do NutriOtimiza em artifacts\:
+#   NutriOtimiza-Setup-{versão}-{x64|x86}.exe (+ .sha256) e NutriOtimiza-Portable-{versão}-{x64|x86}.zip (+ .sha256)
 # Uso: pwsh tools\build.ps1 [-SkipTests] [-Arch x64,x86]
 param(
     [switch]$SkipTests,
@@ -18,7 +18,7 @@ $iscc = @(
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw 'Inno Setup 6 não encontrado. Instale com: winget install JRSoftware.InnoSetup' }
 
-Write-Host "OtimizaPC $version" -ForegroundColor Cyan
+Write-Host "NutriOtimiza $version" -ForegroundColor Cyan
 if (Test-Path $artifacts) { Remove-Item -Recurse -Force $artifacts }
 New-Item -ItemType Directory -Force -Path $artifacts | Out-Null
 
@@ -43,12 +43,12 @@ foreach ($a in $Arch) {
     Get-ChildItem $publish -Recurse -Include *.pdb, *.xml | Remove-Item -Force
 
     Write-Host "== Instalador $a" -ForegroundColor Cyan
-    & $iscc /Q "/DAppVersion=$version" "/DArch=$a" "/DSourceDir=$publish" (Join-Path $root 'installer\OtimizaPC.iss')
+    & $iscc /Q "/DAppVersion=$version" "/DArch=$a" "/DSourceDir=$publish" (Join-Path $root 'installer\NutriOtimiza.iss')
     if ($LASTEXITCODE -ne 0) { throw "Falha ao gerar o instalador $a." }
-    Write-Checksum (Join-Path $artifacts "OtimizaPC-Setup-$version-$a.exe")
+    Write-Checksum (Join-Path $artifacts "NutriOtimiza-Setup-$version-$a.exe")
 
     Write-Host "== Portátil $a" -ForegroundColor Cyan
-    $zip = Join-Path $artifacts "OtimizaPC-Portable-$version-$a.zip"
+    $zip = Join-Path $artifacts "NutriOtimiza-Portable-$version-$a.zip"
     Compress-Archive -Path (Join-Path $publish '*') -DestinationPath $zip
     Write-Checksum $zip
 }

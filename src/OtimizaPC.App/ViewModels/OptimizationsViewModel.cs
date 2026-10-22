@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -77,7 +77,7 @@ namespace OtimizaPC.App.ViewModels
             else if (state == TweakState.Unknown) StatusText = "Não disponível neste computador";
             else if (state == TweakState.Partial) StatusText = "Parcialmente aplicado";
             else if (state == TweakState.Applied)
-                StatusText = appliedByAppAt.HasValue ? $"Aplicado pelo OtimizaPC em {appliedByAppAt:dd/MM/yyyy}" : "Já está assim no sistema";
+                StatusText = appliedByAppAt.HasValue ? $"Aplicado pelo {AppInfo.Name} em {appliedByAppAt:dd/MM/yyyy}" : "Já está assim no sistema";
             else StatusText = null;
         }
 
@@ -194,9 +194,9 @@ namespace OtimizaPC.App.ViewModels
                 if (CreateRestorePoint && CanCreateRestorePoint)
                 {
                     StatusMessage = "Criando ponto de restauração (pode levar um minuto)…";
-                    var restore = await Task.Run(() => RestorePoint.TryCreate("OtimizaPC - antes das otimizações"));
+                    var restore = await Task.Run(() => RestorePoint.TryCreate($"{AppInfo.Name} - antes das otimizações"));
                     if (!restore.Success
-                        && !await _dialogs.ConfirmAsync("Sem ponto de restauração", restore.Message + "\n\nContinuar mesmo assim? Cada otimização ainda pode ser desfeita pelo OtimizaPC.", "Continuar"))
+                        && !await _dialogs.ConfirmAsync("Sem ponto de restauração", restore.Message + $"\n\nContinuar mesmo assim? Cada otimização ainda pode ser desfeita pelo {AppInfo.Name}.", "Continuar"))
                     {
                         StatusMessage = "Nenhuma alteração foi feita.";
                         return;

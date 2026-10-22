@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using OtimizaPC.Core;
 using OtimizaPC.Core.Models;
 using Wpf.Ui.Controls;
 
@@ -41,7 +42,7 @@ namespace OtimizaPC.App.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
             value is bool installed && installed
-                ? "Instalado (execute o OtimizaPC como administrador para usá-lo)."
+                ? $"Instalado (execute o {AppInfo.Name} como administrador para usá-lo)."
                 : "Não instalado.";
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>

@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
   <!-- Configurações comuns a todos os projetos da solução -->
   <PropertyGroup>
     <!-- .NET Framework 4.8: roda no Windows 8.1, 10, 11 e Server 2012 R2+ -->
@@ -12,9 +12,9 @@
     -->
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <Prefer32Bit>false</Prefer32Bit>
-    <Company>OtimizaPC</Company>
-    <Product>OtimizaPC</Product>
-    <Copyright>© 2026 OtimizaPC</Copyright>
+    <Company>Nutriport</Company>
+    <Product>NutriOtimiza</Product>
+    <Copyright>© 2026 Nutriport</Copyright>
     <Version>1.0.0</Version>
   </PropertyGroup>
 

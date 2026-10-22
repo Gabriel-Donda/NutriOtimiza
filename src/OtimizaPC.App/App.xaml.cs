@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -20,7 +20,7 @@ namespace OtimizaPC.App
     {
         private SensorService _sensors;
 
-        private const string InstanceMutexName = @"Local\OtimizaPC.InstanciaUnica";
+        private const string InstanceMutexName = @"Local\NutriOtimiza.InstanciaUnica";
         private Mutex _instanceMutex;
 
         protected override void OnStartup(StartupEventArgs e)

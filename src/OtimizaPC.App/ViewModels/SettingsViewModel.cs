@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -200,8 +200,8 @@ namespace OtimizaPC.App.ViewModels
         private async Task InstallUpdateAsync()
         {
             var update = AvailableUpdate;
-            if (!await _dialogs.ConfirmAsync("Atualizar o OtimizaPC",
-                    $"Baixar e instalar a versão {update.Version.ToString(3)}? O OtimizaPC será fechado e reaberto ao final.", "Atualizar"))
+            if (!await _dialogs.ConfirmAsync($"Atualizar o {AppInfo.Name}",
+                    $"Baixar e instalar a versão {update.Version.ToString(3)}? O {AppInfo.Name} será fechado e reaberto ao final.", "Atualizar"))
                 return;
 
             IsUpdating = true;

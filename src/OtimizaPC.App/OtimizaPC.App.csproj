@@ -1,14 +1,14 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
     <RootNamespace>OtimizaPC.App</RootNamespace>
-    <AssemblyName>OtimizaPC</AssemblyName>
+    <AssemblyName>NutriOtimiza</AssemblyName>
     <!-- Release exige administrador; Debug roda sem elevação para facilitar o desenvolvimento -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <AssemblyTitle>OtimizaPC</AssemblyTitle>
+    <AssemblyTitle>NutriOtimiza</AssemblyTitle>
     <Description>Otimização, limpeza e diagnóstico do Windows</Description>
   </PropertyGroup>
 

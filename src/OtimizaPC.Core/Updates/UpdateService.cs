@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -54,7 +54,7 @@ namespace OtimizaPC.Core.Updates
     }
 
     /// <summary>
-    /// Atualização via GitHub Releases. Cada versão publica "OtimizaPC-Setup-{versão}-{x64|x86}.exe" e o
+    /// Atualização via GitHub Releases. Cada versão publica "NutriOtimiza-Setup-{versão}-{x64|x86}.exe" e o
     /// respectivo ".sha256"; o instalador só é executado se o hash conferir.
     /// </summary>
     public static class UpdateService
@@ -106,7 +106,7 @@ namespace OtimizaPC.Core.Updates
             var assets = release.Assets ?? new List<GitHubAsset>();
             var installer = assets.FirstOrDefault(a =>
                 a.Name != null
-                && a.Name.StartsWith("OtimizaPC-Setup-", StringComparison.OrdinalIgnoreCase)
+                && a.Name.StartsWith(AppInfo.Name + "-Setup-", StringComparison.OrdinalIgnoreCase)
                 && a.Name.EndsWith($"-{architecture}.exe", StringComparison.OrdinalIgnoreCase));
             if (installer == null) return null;
 
@@ -122,7 +122,7 @@ namespace OtimizaPC.Core.Updates
             };
         }
 
-        /// <summary>Aceita "v1.2.3", "1.2.3" e "OtimizaPC 1.2".</summary>
+        /// <summary>Aceita "v1.2.3", "1.2.3" e "NutriOtimiza 1.2".</summary>
         internal static Version ParseVersion(string tag)
         {
             if (string.IsNullOrWhiteSpace(tag)) return null;
@@ -142,7 +142,7 @@ namespace OtimizaPC.Core.Updates
                 throw new InvalidOperationException("Esta versão não publicou o arquivo de verificação (.sha256); a atualização não é segura.");
 
             EnableModernTls();
-            var folder = Path.Combine(Path.GetTempPath(), "OtimizaPC-atualizacao");
+            var folder = Path.Combine(Path.GetTempPath(), AppInfo.Name + "-atualizacao");
             Directory.CreateDirectory(folder);
             var target = Path.Combine(folder, Path.GetFileName(update.InstallerName));
 

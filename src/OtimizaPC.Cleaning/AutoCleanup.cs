@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -9,7 +9,7 @@ using OtimizaPC.Core;
 namespace OtimizaPC.Cleaning
 {
     /// <summary>
-    /// Limpeza sem interface, usada pela tarefa agendada (OtimizaPC.exe --limpeza-automatica).
+    /// Limpeza sem interface, usada pela tarefa agendada (NutriOtimiza.exe --limpeza-automatica).
     /// Só itens seguros e marcados como recomendados; caches de apps abertos são pulados.
     /// </summary>
     public static class AutoCleanup
@@ -48,7 +48,7 @@ namespace OtimizaPC.Cleaning
     /// <summary>Tarefa semanal no Agendador de Tarefas do Windows que executa a limpeza automática.</summary>
     public static class ScheduledCleanup
     {
-        public const string TaskName = @"OtimizaPC\LimpezaAutomatica";
+        public const string TaskName = @"NutriOtimiza\LimpezaAutomatica";
 
         public static bool IsEnabled()
         {
@@ -65,7 +65,7 @@ namespace OtimizaPC.Cleaning
         /// <summary>Cria (ou substitui) a tarefa: domingo ao meio-dia, ou assim que o PC ligar se estiver desligado nesse horário.</summary>
         public static void Enable(string executablePath)
         {
-            var xmlPath = Path.Combine(Path.GetTempPath(), "OtimizaPC-tarefa.xml");
+            var xmlPath = Path.Combine(Path.GetTempPath(), AppInfo.Name + "-tarefa.xml");
             // O schtasks exige o XML de tarefa em UTF-16
             File.WriteAllText(xmlPath, BuildTaskXml(executablePath, DateTime.Now), System.Text.Encoding.Unicode);
             try
@@ -92,7 +92,7 @@ namespace OtimizaPC.Cleaning
             return $@"<?xml version=""1.0"" encoding=""UTF-16""?>
 <Task version=""1.2"" xmlns=""http://schemas.microsoft.com/windows/2004/02/mit/task"">
   <RegistrationInfo>
-    <Description>Limpeza semanal de arquivos temporários e caches feita pelo OtimizaPC.</Description>
+    <Description>Limpeza semanal de arquivos temporários e caches feita pelo NutriOtimiza.</Description>
   </RegistrationInfo>
   <Triggers>
     <CalendarTrigger>

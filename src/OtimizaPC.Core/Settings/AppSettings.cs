@@ -15,7 +15,8 @@ namespace OtimizaPC.Core.Settings
     [DataContract]
     public sealed class AppSettings
     {
-        [DataMember] public ThemePreference Theme { get; set; } = ThemePreference.System;
+        /// <summary>Escuro por padrão: é o visual da marca Nutriport.</summary>
+        [DataMember] public ThemePreference Theme { get; set; } = ThemePreference.Dark;
 
         [DataMember] public bool CheckUpdatesOnStartup { get; set; } = true;
 
@@ -28,7 +29,7 @@ namespace OtimizaPC.Core.Settings
         [OnDeserializing]
         private void OnDeserializing(StreamingContext context)
         {
-            Theme = ThemePreference.System;
+            Theme = ThemePreference.Dark;
             CheckUpdatesOnStartup = true;
             UpdateRepository = string.Empty;
         }
