@@ -12,7 +12,8 @@ Requer o .NET Framework 4.8, que já vem no Windows 10 (1903+) e 11 e pode ser i
 | Painel (métricas ao vivo + nota de saúde) | ✅ Fase 1 |
 | Hardware (relatório completo + exportação HTML) | ✅ Fase 1 |
 | Sensores (temperaturas, clocks, ventoinhas, mín/máx) | ✅ Fase 1 |
-| Limpeza | Fase 2 |
+| Limpeza (temporários, Windows Update, navegadores, apps, DISM, lixeira) | ✅ Fase 2 |
+| Espaço em disco (mapa de pastas + maiores arquivos) | ✅ Fase 2 |
 | Otimizações (com desfazer) | Fase 3 |
 | Reparo (SFC, DISM, rede, BSOD) | Fase 4 |
 | Instalador, atualização automática, assinatura | Fase 5 |
@@ -23,7 +24,23 @@ Requer o .NET Framework 4.8, que já vem no Windows 10 (1903+) e 11 e pode ser i
 src/
 ├── OtimizaPC.Core      → modelos, log, formatação, exportação de relatório
 ├── OtimizaPC.Hardware  → WMI, registro, Win32, sensores (LibreHardwareMonitor), verificações de saúde
+├── OtimizaPC.Cleaning  → motor de limpeza (catálogo, varredura, remoção segura) e analisador de disco
 └── OtimizaPC.App       → interface WPF (WPF-UI, MVVM com CommunityToolkit.Mvvm)
+tests/
+└── OtimizaPC.Tests     → testes do motor de limpeza (xUnit)
+```
+
+## Regras de segurança da limpeza
+
+- Só remove arquivos dentro de pastas de cache/temporários conhecidas (`CleanupCatalog`).
+- `SafePath` recusa raiz de unidade, pastas do sistema e pastas pessoais (Documentos, Desktop, Downloads…), mesmo se um alvo for configurado errado.
+- Nunca segue junctions/links simbólicos.
+- Arquivos em uso são mantidos, nunca forçados. Temporários com menos de 24 h são preservados.
+- Caches de apps (navegadores, Discord…) só são limpos com o app fechado.
+- Sempre há análise prévia e confirmação antes de apagar.
+
+```bash
+dotnet test
 ```
 
 ## Compilar e rodar

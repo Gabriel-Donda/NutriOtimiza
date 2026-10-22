@@ -20,6 +20,7 @@
 
             <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
             <conv:NullToCollapsedConverter x:Key="NullToCollapsed" />
+            <conv:InverseBoolConverter x:Key="InverseBool" />
             <conv:StringToSymbolConverter x:Key="StringToSymbol" />
             <conv:HealthStatusToSymbolConverter x:Key="StatusToSymbol" />
             <conv:HealthStatusToBrushConverter x:Key="StatusToBrush" />

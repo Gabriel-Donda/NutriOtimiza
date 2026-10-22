@@ -26,6 +26,12 @@
         <DataTemplate DataType="{x:Type vm:SensorsViewModel}">
             <views:SensorsView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CleanupViewModel}">
+            <views:CleanupView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:DiskAnalyzerViewModel}">
+            <views:DiskAnalyzerView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ComingSoonViewModel}">
             <views:ComingSoonView />
         </DataTemplate>

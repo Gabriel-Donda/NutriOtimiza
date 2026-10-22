@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
+using OtimizaPC.App.Services;
 using OtimizaPC.App.ViewModels;
 using OtimizaPC.Core;
 using OtimizaPC.Hardware;
@@ -36,7 +37,8 @@ namespace OtimizaPC.App
             var viewModel = new MainViewModel(
                 _sensors,
                 new HardwareInfoService(_sensors),
-                new HealthService(_sensors));
+                new HealthService(_sensors),
+                new DialogService());
 
             MainWindow = new MainWindow { DataContext = viewModel };
             MainWindow.Show();

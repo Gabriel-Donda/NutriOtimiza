@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using OtimizaPC.App.Services;
 using OtimizaPC.Core;
 using OtimizaPC.Hardware;
 using OtimizaPC.Hardware.Sensors;
@@ -36,22 +37,15 @@ namespace OtimizaPC.App.ViewModels
         [ObservableProperty]
         private NavItem _selectedItem;
 
-        public MainViewModel(SensorService sensors, HardwareInfoService hardwareInfo, HealthService health)
+        public MainViewModel(SensorService sensors, HardwareInfoService hardwareInfo, HealthService health, IDialogService dialogs)
         {
             NavItems = new ObservableCollection<NavItem>
             {
                 new NavItem("Painel", SymbolRegular.Home24, new DashboardViewModel(sensors, hardwareInfo, health)),
                 new NavItem("Hardware", SymbolRegular.DeveloperBoard24, new HardwareViewModel(hardwareInfo)),
                 new NavItem("Sensores", SymbolRegular.Temperature24, new SensorsViewModel(sensors)),
-                new NavItem("Limpeza", SymbolRegular.Broom24, new ComingSoonViewModel(
-                    "Limpeza", SymbolRegular.Broom24, 2,
-                    "Libere espaço com segurança, sempre com prévia do que será apagado.",
-                    "Temporários do usuário e do Windows",
-                    "Cache do Windows Update e Delivery Optimization",
-                    "Cache de navegadores (Chrome, Edge, Firefox, Brave)",
-                    "Miniaturas, logs, dumps de erro e lixeira",
-                    "Limpeza de componentes do Windows (DISM)",
-                    "Analisador de espaço: maiores pastas e arquivos")),
+                new NavItem("Limpeza", SymbolRegular.Broom24, new CleanupViewModel(dialogs)),
+                new NavItem("Espaço em disco", SymbolRegular.DataPie24, new DiskAnalyzerViewModel()),
                 new NavItem("Otimizações", SymbolRegular.Flash24, new ComingSoonViewModel(
                     "Otimizações", SymbolRegular.Flash24, 3,
                     "Ajustes curados, com nível de risco, ponto de restauração e botão de desfazer.",

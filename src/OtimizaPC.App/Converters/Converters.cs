@@ -18,6 +18,13 @@ namespace OtimizaPC.App.Converters
             throw new NotSupportedException();
     }
 
+    public sealed class InverseBoolConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => !(value is bool b && b);
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => !(value is bool b && b);
+    }
+
     /// <summary>Converte o nome do ícone (string vinda do Core) em SymbolRegular.</summary>
     public sealed class StringToSymbolConverter : IValueConverter
     {

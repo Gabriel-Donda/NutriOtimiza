@@ -149,7 +149,7 @@ namespace OtimizaPC.Hardware
         {
             var windowsTemp = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp");
             var size = DirectorySize(Path.GetTempPath()) + DirectorySize(windowsTemp);
-            var detail = $"{Format.Bytes(size)} em arquivos temporários (a limpeza chega na Fase 2)";
+            var detail = $"{Format.Bytes(size)} em arquivos temporários. Use o módulo Limpeza para liberar.";
             return new HealthCheck("Arquivos temporários", detail, size > 2L * 1024 * 1024 * 1024 ? HealthStatus.Warning : HealthStatus.Info);
         }
 
