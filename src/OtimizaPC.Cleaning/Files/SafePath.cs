@@ -17,10 +17,16 @@ namespace OtimizaPC.Cleaning.Files
         {
             if (string.IsNullOrWhiteSpace(target?.Root)) return false;
 
+            var raw = target.Root.Trim();
+
+            // "C:" e "C:\" são a raiz da unidade. Path.GetFullPath("C:") resolve para o diretório ATUAL
+            // da unidade, então precisamos recusar antes de normalizar.
+            if (IsDriveRoot(raw)) return false;
+
             string full;
             try
             {
-                full = Normalize(target.Root);
+                full = Normalize(raw);
             }
             catch
             {
@@ -30,13 +36,19 @@ namespace OtimizaPC.Cleaning.Files
             // Caminhos de rede ou relativos nunca são alvo de limpeza
             if (full.StartsWith(@"\\", StringComparison.Ordinal) || !Path.IsPathRooted(full)) return false;
 
-            // Unidade inteira (C:\) nunca
-            if (full.Length <= 3) return false;
+            // Unidade inteira (C:\, inclusive "C:" normalizado) nunca
+            if (IsDriveRoot(full) || full.Length <= 3) return false;
 
             // Pastas protegidas só podem ser alvo de um arquivo específico (ex.: MEMORY.DMP no Windows)
             if (Protected.Value.Contains(full)) return target.IsSingleFile;
 
             return true;
+        }
+
+        private static bool IsDriveRoot(string path)
+        {
+            var trimmed = path.TrimEnd('\\');
+            return trimmed.Length == 2 && char.IsLetter(trimmed[0]) && trimmed[1] == ':';
         }
 
         private static string Normalize(string path) => Path.GetFullPath(path).TrimEnd('\\');

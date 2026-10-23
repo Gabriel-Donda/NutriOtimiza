@@ -125,6 +125,27 @@ namespace OtimizaPC.Tests
         }
 
         [Fact]
+        public void Configuracoes_SalvamArquivoSemDiretorio()
+        {
+            var file = "OtimizaPC.Tests-" + Guid.NewGuid().ToString("N") + ".json";
+            try
+            {
+                var store = new SettingsStore(file);
+                store.Save(new AppSettings { Theme = ThemePreference.Light, CheckUpdatesOnStartup = false });
+
+                Assert.True(File.Exists(file));
+                var loaded = store.Load();
+                Assert.Equal(ThemePreference.Light, loaded.Theme);
+                Assert.False(loaded.CheckUpdatesOnStartup);
+            }
+            finally
+            {
+                if (File.Exists(file)) File.Delete(file);
+                if (File.Exists(file + ".tmp")) File.Delete(file + ".tmp");
+            }
+        }
+
+        [Fact]
         public void RepositorioEfetivo_VazioUsaPadraoEPreenchidoUsaValorAparado()
         {
             Assert.Equal(AppInfo.DefaultUpdateRepository, new AppSettings { UpdateRepository = "   " }.EffectiveUpdateRepository);
@@ -142,6 +163,23 @@ namespace OtimizaPC.Tests
             Assert.Equal(AutoCleanup.Argument, xml.Descendants(ns + "Arguments").Single().Value);
             Assert.Equal("2026-10-25T12:00:00", xml.Descendants(ns + "StartBoundary").Single().Value);
             Assert.Equal("true", xml.Descendants(ns + "StartWhenAvailable").Single().Value);
+        }
+
+        [Fact]
+        public void TarefaAgendada_TimeoutEncerraProcessoEInformaErro()
+        {
+            var command = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe";
+            var startInfo = new System.Diagnostics.ProcessStartInfo(command, "/c ping -n 10 127.0.0.1 > nul")
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+            };
+
+            using (var process = System.Diagnostics.Process.Start(startInfo))
+            {
+                Assert.Throws<TimeoutException>(() => ScheduledCleanup.WaitForExitOrThrow(process, 100));
+                Assert.True(process.HasExited);
+            }
         }
     }
 }

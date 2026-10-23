@@ -16,9 +16,21 @@
                 <TextBlock Style="{StaticResource PageTitle}" Text="Inicialização" />
             </DockPanel>
             <TextBlock Style="{StaticResource PageSubtitle}" Text="{Binding Summary}" />
+            <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                <ui:ProgressRing
+                    Width="16"
+                    Height="16"
+                    Margin="0,0,8,0"
+                    IsIndeterminate="True"
+                    Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}" />
+                <TextBlock
+                    Style="{StaticResource SecondaryText}"
+                    Text="Carregando programas de inicialização…"
+                    Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}" />
+            </StackPanel>
             <TextBlock
-                Margin="0,-12,0,12"
-                Foreground="{DynamicResource StatusWarningBrush}"
+                Margin="0,0,0,12"
+                Foreground="{DynamicResource StatusCriticalForegroundBrush}"
                 Text="{Binding StatusMessage}"
                 TextWrapping="Wrap"
                 Visibility="{Binding StatusMessage, Converter={StaticResource NullToCollapsed}}" />
@@ -30,12 +42,19 @@
             VerticalAlignment="Stretch"
             VerticalContentAlignment="Stretch">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer.Resources>
+                    <Style TargetType="ui:ToggleSwitch">
+                        <Setter Property="MinHeight" Value="{DynamicResource ControlMinHeight}" />
+                    </Style>
+                </ScrollViewer.Resources>
                 <ItemsControl ItemsSource="{Binding Items}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid Margin="0,8">
+                            <Border Style="{StaticResource TableRow}" Margin="0,4">
+                            <Grid Margin="0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
@@ -54,21 +73,35 @@
                                         TextWrapping="NoWrap"
                                         ToolTip="{Binding Command}" />
                                 </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center">
+                                    <TextBlock
+                                        FontSize="12"
+                                        Foreground="{DynamicResource StatusOkBrush}"
+                                        Text="Ativo — inicia com o Windows"
+                                        Visibility="{Binding IsEnabled, Converter={StaticResource BoolToVisibility}}" />
+                                    <TextBlock
+                                        FontSize="12"
+                                        Style="{StaticResource SecondaryText}"
+                                        Text="Pendente — não inicia automaticamente"
+                                        Visibility="{Binding IsEnabled, Converter={StaticResource InverseBoolToVisibility}}" />
+                                </StackPanel>
                                 <ui:Button
-                                    Grid.Column="1"
+                                    Grid.Column="2"
                                     Margin="0,0,12,0"
                                     Padding="6"
                                     VerticalAlignment="Center"
                                     Appearance="Transparent"
+                                    AutomationProperties.Name="Abrir local do arquivo"
                                     Command="{Binding OpenLocationCommand}"
                                     Icon="{ui:SymbolIcon FolderOpen24}"
                                     ToolTip="Abrir local do arquivo" />
                                 <ui:ToggleSwitch
-                                    Grid.Column="2"
+                                    Grid.Column="3"
                                     VerticalAlignment="Center"
                                     IsChecked="{Binding IsEnabled}"
                                     IsEnabled="{Binding CanToggle}" />
                             </Grid>
+                            </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -103,6 +104,56 @@ namespace OtimizaPC.Tests
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
             }
             Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), $"Cancelamento levou {watch.Elapsed.TotalSeconds:N1} s");
+        }
+
+        [Fact]
+        public async Task Processo_CanceladoNaoFicaAtivo()
+        {
+            var pid = 0;
+            using (var cts = new CancellationTokenSource())
+            {
+                var task = ProcessStreamer.RunAsync("cmd.exe", "/c ping -n 30 127.0.0.1",
+                    _ => cts.Cancel(), cts.Token, id => pid = id);
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
+            }
+
+            Assert.True(pid > 0, "o processo não chegou a iniciar");
+            await WaitForExitAsync(pid);
+        }
+
+        [Fact]
+        public async Task Processo_FalhaDoConsumidorEncerraProcesso()
+        {
+            var pid = 0;
+            var error = await Assert.ThrowsAsync<InvalidOperationException>(() => ProcessStreamer.RunAsync(
+                "cmd.exe", "/c echo linha& ping -n 30 127.0.0.1",
+                _ => throw new InvalidOperationException("falha simulada"),
+                CancellationToken.None,
+                id => pid = id));
+
+            Assert.Equal("falha simulada", error.Message);
+            Assert.True(pid > 0, "o processo não chegou a iniciar");
+            await WaitForExitAsync(pid);
+        }
+
+        private static async Task WaitForExitAsync(int pid)
+        {
+            for (var attempt = 0; attempt < 50; attempt++)
+            {
+                try
+                {
+                    using (var process = Process.GetProcessById(pid))
+                        if (process.HasExited) return;
+                }
+                catch (ArgumentException)
+                {
+                    return; // não existe mais: encerrado
+                }
+
+                await Task.Delay(100);
+            }
+
+            Assert.Fail($"o processo {pid} continua ativo depois de 5 s");
         }
 
         // ---------- Telas azuis ----------

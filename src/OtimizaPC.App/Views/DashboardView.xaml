@@ -6,7 +6,10 @@
     xmlns:models="clr-namespace:OtimizaPC.Core.Models;assembly=OtimizaPC.Core"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
 
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer
+        HorizontalScrollBarVisibility="Disabled"
+        KeyboardNavigation.TabNavigation="Local"
+        VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="28,24,28,28">
             <TextBlock Style="{StaticResource PageTitle}" Text="Painel" />
             <TextBlock Style="{StaticResource PageSubtitle}" Text="Visão geral do computador em tempo real" />
@@ -31,11 +34,32 @@
                 </StackPanel>
             </ui:InfoBar>
 
+            <Border
+                Margin="0,0,0,16"
+                Padding="12,10"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="6"
+                Visibility="{Binding IsCheckingHealth, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:ProgressRing
+                        Width="20"
+                        Height="20"
+                        Margin="0,0,10,0"
+                        IsIndeterminate="True" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Style="{StaticResource SecondaryText}"
+                        Text="Verificando a saúde do sistema…" />
+                </StackPanel>
+            </Border>
+
             <!-- Cartões de métricas -->
             <ItemsControl Margin="0,0,-12,0" ItemsSource="{Binding Cards}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <UniformGrid Columns="3" />
+                        <WrapPanel ItemWidth="{DynamicResource MetricCardMinWidth}" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
@@ -166,6 +190,28 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <TextBlock
+                            Margin="0,8,0,0"
+                            Style="{StaticResource SecondaryText}"
+                            Text="Nenhuma verificação disponível ainda."
+                            TextWrapping="Wrap"
+                            Visibility="{Binding Checks.Count, Converter={StaticResource ZeroToVisible}}" />
+                        <TextBlock
+                            Margin="0,8,0,0"
+                            Foreground="{DynamicResource StatusCriticalForegroundBrush}"
+                            Text="Não foi possível concluir a verificação. Tente novamente."
+                            TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ScoreLabel}" Value="Erro na verificação">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
                 </ui:Card>
 

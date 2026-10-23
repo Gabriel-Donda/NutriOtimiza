@@ -108,23 +108,37 @@
                                     <ItemsControl ItemsSource="{Binding Items}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Grid Margin="0,6">
+                                                <Border Style="{StaticResource TableRow}" Margin="0,2">
+                                                <Grid Margin="0,4">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="*" />
                                                     </Grid.ColumnDefinitions>
                                                     <CheckBox
+                                                        AutomationProperties.Name="{Binding DisplayName}"
                                                         MinWidth="0"
                                                         Margin="0,0,8,0"
                                                         VerticalAlignment="Top"
                                                         IsChecked="{Binding IsSelected}" />
                                                     <StackPanel Grid.Column="1">
-                                                        <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" />
-                                                        <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Description}" />
+                                                        <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Description}" TextWrapping="Wrap" />
                                                         <TextBlock
                                                             FontSize="11"
                                                             Style="{StaticResource SecondaryText}"
                                                             Text="{Binding PackageName}" />
+                                                        <StackPanel
+                                                            Orientation="Horizontal"
+                                                            Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}">
+                                                            <ui:SymbolIcon
+                                                                Margin="0,2,6,0"
+                                                                FontSize="14"
+                                                                Foreground="{DynamicResource StatusWarningBrush}"
+                                                                Symbol="Warning24" />
+                                                            <TextBlock
+                                                                Style="{StaticResource SecondaryText}"
+                                                                Text="Será removido" />
+                                                        </StackPanel>
                                                         <TextBlock
                                                             FontSize="12"
                                                             Foreground="{DynamicResource StatusCriticalBrush}"
@@ -133,6 +147,7 @@
                                                             Visibility="{Binding StatusText, Converter={StaticResource NullToCollapsed}}" />
                                                     </StackPanel>
                                                 </Grid>
+                                                </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>

@@ -49,6 +49,7 @@ namespace OtimizaPC.Cleaning
     public static class ScheduledCleanup
     {
         public const string TaskName = @"NutriOtimiza\LimpezaAutomatica";
+        private const int SchtasksTimeoutMs = 30_000;
 
         public static bool IsEnabled()
         {
@@ -71,12 +72,22 @@ namespace OtimizaPC.Cleaning
             try
             {
                 var code = RunSchtasks($"/Create /TN \"{TaskName}\" /XML \"{xmlPath}\" /F");
-                if (code != 0) throw new InvalidOperationException($"O Agendador de Tarefas recusou a criação (código {code}). É preciso executar como administrador.");
+                if (code != 0)
+                    throw new InvalidOperationException(
+                        $"O Agendador de Tarefas recusou a criação (código {code}). " +
+                        "Execute o NutriOtimiza como administrador e verifique se o serviço 'Agendador de Tarefas' está em execução.");
                 History.Record("Limpeza automática", "Agendamento semanal ativado");
             }
             finally
             {
-                File.Delete(xmlPath);
+                try
+                {
+                    File.Delete(xmlPath);
+                }
+                catch
+                {
+                    // Não deixa a falha de limpeza do temporário esconder o erro real do agendamento
+                }
             }
         }
 
@@ -131,16 +142,49 @@ namespace OtimizaPC.Cleaning
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
             };
             using (var process = Process.Start(startInfo))
             {
-                process.StandardOutput.ReadToEnd();
-                process.StandardError.ReadToEnd();
-                process.WaitForExit(30_000);
+                if (process == null)
+                    throw new InvalidOperationException("Não foi possível iniciar o Agendador de Tarefas.");
+
+                return WaitForExitOrThrow(process, SchtasksTimeoutMs);
+            }
+        }
+
+        /// <summary>Espera o processo terminar ou o encerra quando excede o limite.</summary>
+        internal static int WaitForExitOrThrow(Process process, int timeoutMs)
+        {
+            if (process == null) throw new ArgumentNullException(nameof(process));
+            if (timeoutMs <= 0) throw new ArgumentOutOfRangeException(nameof(timeoutMs));
+
+            if (process.WaitForExit(timeoutMs))
+            {
+                process.WaitForExit();
                 return process.ExitCode;
             }
+
+            try
+            {
+                if (!process.HasExited) process.Kill();
+            }
+            catch
+            {
+                // O processo pode ter terminado entre o timeout e o Kill.
+            }
+
+            try
+            {
+                process.WaitForExit(5_000);
+            }
+            catch
+            {
+                // O timeout original continua sendo o erro relevante para o chamador.
+            }
+
+            throw new TimeoutException(
+                $"O Agendador de Tarefas não respondeu em {timeoutMs / 1000.0:0.#} s e foi encerrado. " +
+                "Verifique se o serviço 'Agendador de Tarefas' está em execução e tente novamente como administrador.");
         }
     }
 }
