@@ -23,7 +23,8 @@
             <sys:Double x:Key="Spacing28">28</sys:Double>
             <sys:Double x:Key="ControlMinHeight">40</sys:Double>
             <sys:Double x:Key="MetricCardMinWidth">260</sys:Double>
-            <FontFamily x:Key="AppFontFamily">Segoe UI Variable, Segoe UI</FontFamily>
+            <sys:Double x:Key="DashboardPanelMinWidth">360</sys:Double>
+            <FontFamily x:Key="AppFontFamily">Segoe UI</FontFamily>
 
             <!-- Identidade visual da Nutriport (brushes semânticos são atualizados no ThemeService) -->
             <SolidColorBrush x:Key="BrandGoldBrush" Color="#D2C068" />
@@ -134,9 +135,10 @@
             </Style>
 
             <Style x:Key="SectionCard" BasedOn="{StaticResource {x:Type ui:Card}}" TargetType="ui:Card">
-                <Setter Property="Margin" Value="0,0,0,12" />
                 <Setter Property="Padding" Value="20,14" />
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Top" />
             </Style>
 
             <Style x:Key="ColumnHeader" BasedOn="{StaticResource SecondaryText}" TargetType="TextBlock">
@@ -153,6 +155,67 @@
                         <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
                     </Trigger>
                 </Style.Triggers>
+            </Style>
+
+            <Style x:Key="DashboardMetricCard" BasedOn="{StaticResource {x:Type ui:Card}}" TargetType="ui:Card">
+                <Setter Property="Focusable" Value="True" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="FocusVisualStyle" Value="{StaticResource AppFocusVisualStyle}" />
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource FocusStrokeBrush}" />
+                    </Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True">
+                        <Setter Property="BorderBrush" Value="{DynamicResource FocusStrokeBrush}" />
+                        <Setter Property="BorderThickness" Value="2" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="DashboardMetricButton" TargetType="Button">
+                <Setter Property="MinHeight" Value="140" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="FocusVisualStyle" Value="{StaticResource AppFocusVisualStyle}" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Stretch" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border
+                                x:Name="MetricChrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="18,16">
+                                <ContentPresenter
+                                    HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource FocusStrokeBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource FocusStrokeBrush}" />
+                                    <Setter Property="BorderThickness" Value="2" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Opacity" Value="0.82" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.55" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <!-- Texto selecionável (para o técnico copiar serial, MAC etc.) sem aparência de caixa de texto -->

@@ -10,9 +10,15 @@
         HorizontalScrollBarVisibility="Disabled"
         KeyboardNavigation.TabNavigation="Local"
         VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="28,24,28,28">
+        <Grid Width="{Binding RelativeSource={RelativeSource AncestorType=ScrollViewer}, Path=ViewportWidth}">
+            <StackPanel Margin="28,24,28,28">
             <TextBlock Style="{StaticResource PageTitle}" Text="Painel" />
             <TextBlock Style="{StaticResource PageSubtitle}" Text="Visão geral do computador em tempo real" />
+            <TextBlock
+                Margin="0,-12,0,12"
+                Style="{StaticResource SecondaryText}"
+                Text="{Binding LastMetricsUpdatedText}"
+                Visibility="{Binding LastMetricsUpdatedText, Converter={StaticResource NullToCollapsed}}" />
 
             <ui:InfoBar
                 Title="Sensores"
@@ -56,17 +62,21 @@
             </Border>
 
             <!-- Cartões de métricas -->
-            <ItemsControl Margin="0,0,-12,0" ItemsSource="{Binding Cards}">
+            <ItemsControl HorizontalContentAlignment="Stretch" Margin="0,0,-12,0" ItemsSource="{Binding Cards}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <WrapPanel ItemWidth="{DynamicResource MetricCardMinWidth}" />
+                        <UniformGrid Columns="3" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <ui:Card
+                        <Button
+                            AutomationProperties.Name="{Binding Title}"
+                            Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding Destination}"
+                            Style="{StaticResource DashboardMetricButton}"
+                            ToolTip="{Binding Tooltip}"
                             Margin="0,0,12,12"
-                            Padding="18,16"
                             VerticalAlignment="Stretch"
                             VerticalContentAlignment="Stretch">
                             <Grid>
@@ -125,30 +135,231 @@
                                     Values="{Binding History}"
                                     Visibility="{Binding ShowChart, Converter={StaticResource BoolToVisibility}}" />
                             </Grid>
-                        </ui:Card>
+                        </Button>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <Grid Margin="0,4,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+            <!-- Visualizações adicionais: temperaturas, rede e espaço por disco. -->
+            <ItemsControl HorizontalContentAlignment="Stretch" Margin="0,0,0,4">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="2" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.Items>
+                    <ui:Card
+                        Style="{StaticResource SectionCard}"
+                        MinWidth="{DynamicResource DashboardPanelMinWidth}"
+                        Margin="0,0,12,12"
+                        AutomationProperties.Name="Temperaturas do sistema"
+                        Visibility="{Binding HasTemperature, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="Temperaturas" />
+                            <TextBlock Style="{StaticResource SecondaryText}" Text="Leitura atual dos principais componentes." />
+                            <Grid Margin="0,14,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock FontWeight="SemiBold" Text="CPU" />
+                                <ProgressBar Grid.Column="1" Height="8" Margin="12,0" Maximum="100" Value="{Binding CpuTemperature, Mode=OneWay}" />
+                                <TextBlock Grid.Column="2" Foreground="{Binding TemperatureStatus, Converter={StaticResource StatusToBrush}}" Text="{Binding CpuTemperatureText}" />
+                                <TextBlock Grid.Row="1" Margin="0,10,0,0" FontWeight="SemiBold" Text="GPU" />
+                                <ProgressBar Grid.Row="1" Grid.Column="1" Height="8" Margin="12,10,12,0" Maximum="100" Value="{Binding GpuTemperature, Mode=OneWay}" />
+                                <TextBlock Grid.Row="1" Grid.Column="2" Margin="0,10,0,0" Foreground="{Binding TemperatureStatus, Converter={StaticResource StatusToBrush}}" Text="{Binding GpuTemperatureText}" />
+                            </Grid>
+                        </StackPanel>
+                    </ui:Card>
 
+                    <ui:Card
+                        Style="{StaticResource SectionCard}"
+                        MinWidth="{DynamicResource DashboardPanelMinWidth}"
+                        Margin="0,0,12,12"
+                        AutomationProperties.Name="Histórico de rede">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="Rede" />
+                            <TextBlock Style="{StaticResource SecondaryText}" Text="Tráfego recente de download e upload." />
+                            <controls:Sparkline
+                                Height="48"
+                                Margin="0,14,0,4"
+                                Maximum="{Binding NetworkHistoryMaximum}"
+                                Stroke="{DynamicResource StatusInfoBrush}"
+                                Values="{Binding NetworkDownloadHistory}" />
+                            <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding NetworkDownloadText}" />
+                            <controls:Sparkline
+                                Height="48"
+                                Margin="0,8,0,4"
+                                Maximum="{Binding NetworkHistoryMaximum}"
+                                Stroke="{DynamicResource BrandOrangeBrush}"
+                                Values="{Binding NetworkUploadHistory}" />
+                            <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding NetworkUploadText}" />
+                        </StackPanel>
+                    </ui:Card>
+
+                    <ui:Card
+                        Style="{StaticResource SectionCard}"
+                        MinWidth="{DynamicResource DashboardPanelMinWidth}"
+                        Margin="0,0,0,12"
+                        AutomationProperties.Name="Uso dos discos">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="Uso dos discos" />
+                            <TextBlock Style="{StaticResource SecondaryText}" Text="Espaço usado por unidade." />
+                            <ItemsControl Margin="0,10,0,0" ItemsSource="{Binding Disks}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,5">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock FontWeight="SemiBold" Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}" />
+                                            <ProgressBar Grid.Row="1" Height="7" Margin="0,4,0,0" Maximum="100" Value="{Binding UsedPercent, Mode=OneWay}" ToolTip="{Binding UsedText}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ui:Card>
+                </ItemsControl.Items>
+            </ItemsControl>
+
+            <!-- Uso por núcleo e processos com maior consumo. -->
+            <ItemsControl HorizontalContentAlignment="Stretch" Margin="0,0,0,4">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="2" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.Items>
+                    <ui:Card
+                        Style="{StaticResource SectionCard}"
+                        MinWidth="{DynamicResource DashboardPanelMinWidth}"
+                        Margin="0,0,12,12"
+                        AutomationProperties.Name="Uso por núcleo do processador">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="Uso por núcleo" />
+                            <TextBlock Style="{StaticResource SecondaryText}" Text="Carga de cada processador lógico." />
+                            <ItemsControl Margin="0,10,0,0" ItemsSource="{Binding CpuCores}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="48" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock FontSize="12" Style="{StaticResource SecondaryText}" Text="{Binding Label}" />
+                                            <ProgressBar
+                                                Grid.Column="1"
+                                                Height="7"
+                                                Margin="8,0"
+                                                Maximum="100"
+                                                Value="{Binding Usage, Mode=OneWay}"
+                                                Foreground="{Binding Status, Converter={StaticResource StatusToBrush}}" />
+                                            <TextBlock Grid.Column="2" Margin="0,0,4,0" FontSize="11" Text="{Binding UsageText}" TextAlignment="Right" TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ui:Card>
+
+                    <ui:Card
+                        Style="{StaticResource SectionCard}"
+                        MinWidth="{DynamicResource DashboardPanelMinWidth}"
+                        Margin="0,0,0,12"
+                        AutomationProperties.Name="Processos com maior consumo">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="Processos em destaque" />
+                            <TextBlock Style="{StaticResource SecondaryText}" Text="Top 5 por CPU e memória." />
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock FontWeight="SemiBold" Text="CPU" />
+                                    <ItemsControl ItemsSource="{Binding TopProcessesByCpu}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
+                                                    <TextBlock Grid.Column="1" Margin="6,0,0,0" Style="{StaticResource SecondaryText}" Text="{Binding CpuText}" TextAlignment="Right" TextTrimming="CharacterEllipsis" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock FontWeight="SemiBold" Text="Memória" />
+                                    <ItemsControl ItemsSource="{Binding TopProcessesByMemory}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
+                                                    <TextBlock Grid.Column="1" Margin="6,0,0,0" Style="{StaticResource SecondaryText}" Text="{Binding MemoryText}" TextAlignment="Right" TextTrimming="CharacterEllipsis" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </ui:Card>
+                </ItemsControl.Items>
+            </ItemsControl>
+
+            <ItemsControl HorizontalContentAlignment="Stretch" Margin="0,4,0,0">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="2" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.Items>
                 <!-- Saúde do sistema -->
-                <ui:Card Padding="20" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
+                <ui:Card
+                    Style="{StaticResource SectionCard}"
+                    MinWidth="{DynamicResource DashboardPanelMinWidth}"
+                    Margin="0,0,12,12"
+                    VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Top">
                     <StackPanel>
-                        <DockPanel>
-                            <ui:Button
-                                Appearance="Secondary"
-                                Command="{Binding RunHealthCheckCommand}"
-                                Content="Verificar novamente"
-                                DockPanel.Dock="Right"
-                                Icon="{ui:SymbolIcon ArrowSync24}" />
+                        <StackPanel>
                             <TextBlock Style="{StaticResource SectionTitle}" Text="Saúde do sistema" />
-                        </DockPanel>
+                            <WrapPanel Margin="0,8,0,0">
+                                <ui:Button
+                                    Margin="0,0,8,0"
+                                    Appearance="Transparent"
+                                    Command="{Binding ToggleHealthDetailsCommand}"
+                                    Content="Detalhes"
+                                    ToolTip="Mostrar ou ocultar detalhes da saúde" />
+                                <ui:Button
+                                    Appearance="Secondary"
+                                    Command="{Binding RunHealthCheckCommand}"
+                                    Content="Verificar novamente"
+                                    Icon="{ui:SymbolIcon ArrowSync24}" />
+                            </WrapPanel>
+                        </StackPanel>
+                        <TextBlock
+                            Margin="0,2,0,0"
+                            Style="{StaticResource SecondaryText}"
+                            Text="{Binding HealthUpdatedText}"
+                            Visibility="{Binding HealthUpdatedText, Converter={StaticResource NullToCollapsed}}" />
 
                         <StackPanel Margin="0,14,0,10" Orientation="Horizontal">
                             <TextBlock
@@ -167,7 +378,14 @@
                                 IsIndeterminate="True"
                                 Visibility="{Binding IsCheckingHealth, Converter={StaticResource BoolToVisibility}}" />
                         </StackPanel>
+                        <ProgressBar
+                            Height="8"
+                            Margin="0,0,0,12"
+                            Maximum="100"
+                            Value="{Binding Score, Mode=OneWay}"
+                            ToolTip="Pontuação de saúde do sistema" />
 
+                        <StackPanel Visibility="{Binding AreHealthDetailsVisible, Converter={StaticResource BoolToVisibility}}">
                         <ItemsControl ItemsSource="{Binding Checks}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -212,24 +430,41 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
+                        </StackPanel>
                     </StackPanel>
                 </ui:Card>
 
                 <!-- Resumo do sistema -->
                 <ui:Card
-                    Grid.Column="2"
-                    Padding="20"
+                    Style="{StaticResource SectionCard}"
+                    MinWidth="{DynamicResource DashboardPanelMinWidth}"
+                    Margin="0,0,0,12"
+                    MinHeight="260"
                     VerticalAlignment="Stretch"
                     VerticalContentAlignment="Top">
                     <StackPanel>
-                        <TextBlock
-                            Margin="0,4,0,14"
-                            Style="{StaticResource SectionTitle}"
-                            Text="Resumo do computador" />
+                        <DockPanel Margin="0,4,0,14">
+                            <ui:ProgressRing
+                                Width="18"
+                                Height="18"
+                                Margin="8,0,0,0"
+                                DockPanel.Dock="Right"
+                                IsIndeterminate="True"
+                                Visibility="{Binding IsSummaryLoading, Converter={StaticResource BoolToVisibility}}" />
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SectionTitle}" Text="Resumo do computador" />
+                                <TextBlock
+                                    Style="{StaticResource SecondaryText}"
+                                    Text="{Binding SummaryUpdatedText}"
+                                    Visibility="{Binding SummaryUpdatedText, Converter={StaticResource NullToCollapsed}}" />
+                            </StackPanel>
+                        </DockPanel>
                         <ItemsControl ItemTemplate="{StaticResource InfoEntryTemplate}" ItemsSource="{Binding Summary}" />
                     </StackPanel>
                 </ui:Card>
-            </Grid>
-        </StackPanel>
+                </ItemsControl.Items>
+            </ItemsControl>
+            </StackPanel>
+        </Grid>
     </ScrollViewer>
 </UserControl>

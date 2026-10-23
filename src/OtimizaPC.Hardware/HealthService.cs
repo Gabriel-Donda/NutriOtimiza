@@ -63,11 +63,26 @@ namespace OtimizaPC.Hardware
 
         private static HealthCheck CheckSystemDrive()
         {
-            var drive = new DriveInfo(Path.GetPathRoot(Environment.SystemDirectory));
-            var freePercent = drive.TotalFreeSpace * 100.0 / drive.TotalSize;
-            var detail = $"{Format.Bytes(drive.TotalFreeSpace)} livres ({Format.Percent(freePercent)}) em {drive.Name}";
-            var status = freePercent < 10 ? HealthStatus.Critical : freePercent < 20 ? HealthStatus.Warning : HealthStatus.Ok;
-            return new HealthCheck("Espaço no disco do sistema", detail, status);
+            try
+            {
+                var drive = new DriveInfo(Path.GetPathRoot(Environment.SystemDirectory));
+                if (!drive.IsReady || drive.TotalSize <= 0)
+                {
+                    return new HealthCheck("Espaço no disco do sistema",
+                        "Indisponível: não foi possível ler o tamanho do disco do sistema.", HealthStatus.Info);
+                }
+
+                var freePercent = drive.TotalFreeSpace * 100.0 / drive.TotalSize;
+                var detail = $"{Format.Bytes(drive.TotalFreeSpace)} livres ({Format.Percent(freePercent)}) em {drive.Name}";
+                var status = freePercent < 10 ? HealthStatus.Critical : freePercent < 20 ? HealthStatus.Warning : HealthStatus.Ok;
+                return new HealthCheck("Espaço no disco do sistema", detail, status);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Falha ao verificar o disco do sistema: " + ex.Message);
+                return new HealthCheck("Espaço no disco do sistema",
+                    "Indisponível: falha ao ler o disco do sistema.", HealthStatus.Info);
+            }
         }
 
         private static HealthCheck CheckDisks()
