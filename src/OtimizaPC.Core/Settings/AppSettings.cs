@@ -72,7 +72,8 @@ namespace OtimizaPC.Core.Settings
         {
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(_filePath));
+                var directory = Path.GetDirectoryName(_filePath);
+                if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
                 var temp = _filePath + ".tmp";
                 using (var stream = File.Create(temp))
                     new DataContractJsonSerializer(typeof(AppSettings)).WriteObject(stream, settings);

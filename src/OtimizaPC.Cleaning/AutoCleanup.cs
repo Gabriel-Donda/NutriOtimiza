@@ -49,6 +49,7 @@ namespace OtimizaPC.Cleaning
     public static class ScheduledCleanup
     {
         public const string TaskName = @"NutriOtimiza\LimpezaAutomatica";
+        private const int SchtasksTimeoutMs = 30_000;
 
         public static bool IsEnabled()
         {
@@ -131,16 +132,47 @@ namespace OtimizaPC.Cleaning
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
             };
             using (var process = Process.Start(startInfo))
             {
-                process.StandardOutput.ReadToEnd();
-                process.StandardError.ReadToEnd();
-                process.WaitForExit(30_000);
+                if (process == null)
+                    throw new InvalidOperationException("Não foi possível iniciar o Agendador de Tarefas.");
+
+                return WaitForExitOrThrow(process, SchtasksTimeoutMs);
+            }
+        }
+
+        /// <summary>Espera o processo terminar ou o encerra quando excede o limite.</summary>
+        internal static int WaitForExitOrThrow(Process process, int timeoutMs)
+        {
+            if (process == null) throw new ArgumentNullException(nameof(process));
+            if (timeoutMs <= 0) throw new ArgumentOutOfRangeException(nameof(timeoutMs));
+
+            if (process.WaitForExit(timeoutMs))
+            {
+                process.WaitForExit();
                 return process.ExitCode;
             }
+
+            try
+            {
+                if (!process.HasExited) process.Kill();
+            }
+            catch
+            {
+                // O processo pode ter terminado entre o timeout e o Kill.
+            }
+
+            try
+            {
+                process.WaitForExit(5_000);
+            }
+            catch
+            {
+                // O timeout original continua sendo o erro relevante para o chamador.
+            }
+
+            throw new TimeoutException($"O Agendador de Tarefas não respondeu em {timeoutMs / 1000} s.");
         }
     }
 }
