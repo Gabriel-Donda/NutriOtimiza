@@ -84,6 +84,9 @@ namespace OtimizaPC.App.ViewModels
         [ObservableProperty]
         private string _statusMessage;
 
+        [ObservableProperty]
+        private bool _isLoading;
+
         public ObservableCollection<StartupItemViewModel> Items { get; } = new ObservableCollection<StartupItemViewModel>();
 
         public void OnActivated()
@@ -100,17 +103,30 @@ namespace OtimizaPC.App.ViewModels
         [RelayCommand]
         private async Task RefreshAsync()
         {
-            var entries = await Task.Run(() => StartupManager.List());
-            foreach (var item in Items) item.PropertyChanged -= OnItemChanged;
-            Items.Clear();
-            foreach (var entry in entries)
+            IsLoading = true;
+            try
             {
-                var item = new StartupItemViewModel(entry, message => StatusMessage = message);
-                item.PropertyChanged += OnItemChanged;
-                Items.Add(item);
+                var entries = await Task.Run(() => StartupManager.List());
+                foreach (var item in Items) item.PropertyChanged -= OnItemChanged;
+                Items.Clear();
+                foreach (var entry in entries)
+                {
+                    var item = new StartupItemViewModel(entry, message => StatusMessage = message);
+                    item.PropertyChanged += OnItemChanged;
+                    Items.Add(item);
+                }
+                UpdateSummary();
+                StatusMessage = AppInfo.IsAdministrator ? null : "Sem administrador: itens de \"todos os usuários\" não podem ser alterados.";
             }
-            UpdateSummary();
-            StatusMessage = AppInfo.IsAdministrator ? null : "Sem administrador: itens de \"todos os usuários\" não podem ser alterados.";
+            catch (Exception ex)
+            {
+                Log.Error("Falha ao carregar programas da inicialização", ex);
+                StatusMessage = "Falha ao carregar a inicialização: " + ex.Message;
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
 
         private void OnItemChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)

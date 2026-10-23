@@ -4,13 +4,6 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
 
-    <UserControl.Resources>
-        <Style x:Key="ColumnHeader" BasedOn="{StaticResource SecondaryText}" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-        </Style>
-    </UserControl.Resources>
-
     <DockPanel Margin="28,24,28,0">
         <StackPanel DockPanel.Dock="Top">
             <TextBlock Style="{StaticResource PageTitle}" Text="Sensores" />
@@ -22,6 +15,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <ui:Card
+                            Style="{StaticResource SectionCard}"
                             Margin="0,0,0,12"
                             Padding="20,14"
                             HorizontalContentAlignment="Stretch">
@@ -57,6 +51,7 @@
                                 <ItemsControl ItemsSource="{Binding Items}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
+                                            <Border Style="{StaticResource TableRow}">
                                             <Grid Margin="0,3">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
@@ -71,6 +66,7 @@
                                                 <TextBlock Grid.Column="3" Style="{StaticResource SecondaryText}" Text="{Binding Min}" />
                                                 <TextBlock Grid.Column="4" Style="{StaticResource SecondaryText}" Text="{Binding Max}" />
                                             </Grid>
+                                            </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>

@@ -53,7 +53,9 @@ namespace OtimizaPC.App.Services
 
             // Dourado sobre fundo claro fica ilegível: no tema claro os títulos usam grafite
             var resources = Application.Current.Resources;
-            resources["BrandTitleBrush"] = new SolidColorBrush(theme == ApplicationTheme.Light ? BrandGraphite : BrandGold);
+            var isLight = theme == ApplicationTheme.Light;
+            resources["BrandTitleBrush"] = new SolidColorBrush(isLight ? BrandGraphite : BrandGold);
+            ApplySemanticResources(resources, isLight);
         }
 
         /// <summary>Só acompanha a troca de tema do Windows quando a preferência é "Sistema".</summary>
@@ -62,12 +64,13 @@ namespace OtimizaPC.App.Services
             if (!(Application.Current?.MainWindow is Window window)) return;
             try
             {
+                // Preferências fixas não devem deixar um handler antigo observando o tema do Windows.
+                ApplicationThemeManager.Changed -= OnThemeChanged;
                 SystemThemeWatcher.UnWatch(window);
                 if (preference != ThemePreference.System) return;
 
                 SystemThemeWatcher.Watch(window, WindowBackdropType.None, updateAccents: false);
                 // Ao trocar o tema do Windows, reaplica as cores da marca para o novo tema
-                ApplicationThemeManager.Changed -= OnThemeChanged;
                 ApplicationThemeManager.Changed += OnThemeChanged;
             }
             catch (Exception ex)
@@ -77,6 +80,28 @@ namespace OtimizaPC.App.Services
         }
 
         private static void OnThemeChanged(ApplicationTheme theme, Color accent) => ApplyBrandColors();
+
+        /// <summary>Atualiza os tokens próprios do app depois que o WPF-UI troca o tema.</summary>
+        private static void ApplySemanticResources(ResourceDictionary resources, bool isLight)
+        {
+            SetBrush(resources, "SurfaceNavigationBrush", isLight ? "#FFF7F7F7" : "#FF202020");
+            SetBrush(resources, "SurfaceNavigationHoverBrush", isLight ? "#FFEDEDED" : "#FF2C2C2C");
+            SetBrush(resources, "SurfaceNavigationSelectedBrush", isLight ? "#FFFFE8D6" : "#FF3A3027");
+            SetBrush(resources, "NavigationSelectedForegroundBrush", isLight ? "#FF7A3E12" : "#FFFFF4D0");
+            SetBrush(resources, "FocusStrokeBrush", isLight ? "#FFB8541A" : "#FFF58634");
+            SetBrush(resources, "StatusWarningForegroundBrush", isLight ? "#FF7A4B00" : "#FFF8D477");
+            SetBrush(resources, "StatusCriticalForegroundBrush", isLight ? "#FFB42318" : "#FFFFB4AB");
+            SetBrush(resources, "StatusWarningOnFillBrush", isLight ? "#FF4A2A00" : "#FF1F1F1F");
+            SetBrush(resources, "StatusCriticalOnFillBrush", "#FFFFFFFF");
+            SetBrush(resources, "LogBackgroundBrush", isLight ? "#FFF4F4F4" : "#FF101010");
+            SetBrush(resources, "LogForegroundBrush", isLight ? "#FF242424" : "#FFD4D4D4");
+            SetBrush(resources, "LogErrorForegroundBrush", isLight ? "#FFB42318" : "#FFF48771");
+        }
+
+        private static void SetBrush(ResourceDictionary resources, string key, string color)
+        {
+            resources[key] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+        }
 
         /// <summary>Clareia a cor misturando com branco (usado nos estados de hover/pressionado).</summary>
         private static Color Shift(Color color, double amount) => Color.FromRgb(
