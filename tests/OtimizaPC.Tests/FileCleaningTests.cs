@@ -76,6 +76,90 @@ namespace OtimizaPC.Tests
             }
         }
 
+        // ---------- Alvo de arquivo específico (ex.: C:\Windows\MEMORY.DMP) ----------
+
+        [Fact]
+        public void FileTarget_DetectaSomenteNomeDeArquivoExato()
+        {
+            Assert.True(new FileTarget(@"%WINDIR%", "MEMORY.DMP", recursive: false).IsSingleFile);
+            Assert.False(new FileTarget(@"%WINDIR%", "*.dmp", recursive: false).IsSingleFile);
+            Assert.False(new FileTarget(@"%WINDIR%", "MEMORY.DMP").IsSingleFile);
+            // A idade mínima não interfere na identificação do alvo
+            Assert.True(new FileTarget(@"%WINDIR%", "MEMORY.DMP", recursive: false, minAge: TimeSpan.FromDays(1)).IsSingleFile);
+            // Nome com pasta não é arquivo único: impediria a checagem de caminho protegido
+            Assert.False(new FileTarget(@"%WINDIR%", @"Minidump\MEMORY.DMP", recursive: false).IsSingleFile);
+            Assert.False(new FileTarget(@"%WINDIR%", @"..\MEMORY.DMP", recursive: false).IsSingleFile);
+        }
+
+        [Fact]
+        public void Scan_ArquivoUnicoEncontraSomenteOArquivo()
+        {
+            using (var temp = new TempFolder())
+            {
+                var memory = temp.File("MEMORY.DMP", 4096);
+                temp.File("outro.dmp", 100);
+                temp.File(@"sub\MEMORY.DMP", 100);
+
+                var scan = FileScanner.Scan(new[] { new FileTarget(temp.Path, "MEMORY.DMP", recursive: false) }, CancellationToken.None);
+
+                Assert.Equal(new[] { memory }, scan.Files);
+                Assert.Equal(4096, scan.Bytes);
+                Assert.Equal(1, scan.ItemCount);
+                Assert.Empty(scan.FolderRoots);
+            }
+        }
+
+        [Fact]
+        public void Scan_ArquivoUnicoRespeitaIdadeMinima()
+        {
+            using (var temp = new TempFolder())
+            {
+                var old = temp.File("MEMORY.DMP", 2048, TimeSpan.FromDays(3));
+
+                var recent = FileScanner.Scan(new[] { new FileTarget(temp.Path, "MEMORY.DMP", recursive: false, minAge: TimeSpan.FromDays(1)) }, CancellationToken.None);
+                Assert.Contains(old, recent.Files);
+
+                File.SetLastWriteTimeUtc(old, DateTime.UtcNow);
+                var tooNew = FileScanner.Scan(new[] { new FileTarget(temp.Path, "MEMORY.DMP", recursive: false, minAge: TimeSpan.FromDays(1)) }, CancellationToken.None);
+                Assert.Empty(tooNew.Files);
+                Assert.Equal(0, tooNew.Bytes);
+            }
+        }
+
+        [Fact]
+        public void Scan_ArquivoUnicoInexistenteNaoRetornaNada()
+        {
+            using (var temp = new TempFolder())
+            {
+                temp.File("outro.dmp", 100);
+
+                var scan = FileScanner.Scan(new[] { new FileTarget(temp.Path, "MEMORY.DMP", recursive: false) }, CancellationToken.None);
+
+                Assert.Empty(scan.Files);
+                Assert.Equal(0, scan.Bytes);
+            }
+        }
+
+        [Fact]
+        public void Delete_ArquivoUnicoRemoveSomenteOArquivoAnalisado()
+        {
+            using (var temp = new TempFolder())
+            {
+                var memory = temp.File("MEMORY.DMP", 4096);
+                var other = temp.File("outro.dmp", 100);
+                var nested = temp.File(@"sub\MEMORY.DMP", 100);
+
+                var scan = FileScanner.Scan(new[] { new FileTarget(temp.Path, "MEMORY.DMP", recursive: false) }, CancellationToken.None);
+                var result = FileDeleter.Delete(scan, CancellationToken.None);
+
+                Assert.Equal(1, result.Deleted);
+                Assert.Equal(4096, result.FreedBytes);
+                Assert.False(File.Exists(memory));
+                Assert.True(File.Exists(other), "arquivo não analisado não pode ser apagado");
+                Assert.True(File.Exists(nested), "subpasta não pode ser varrida por um alvo não recursivo");
+            }
+        }
+
         [Fact]
         public void Delete_RemoveArquivosESubpastasVaziasMantendoRaiz()
         {
