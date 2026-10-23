@@ -43,7 +43,7 @@ namespace OtimizaPC.Cleaning.Files
                     }
                     catch (Exception ex) when (ex is UnauthorizedAccessException || ex is IOException || ex is System.Security.SecurityException)
                     {
-                        inaccessible++;
+                        Log.Warn($"Alvo de limpeza sem acesso: {target}: {ex.Message}");
                     }
                     continue;
                 }

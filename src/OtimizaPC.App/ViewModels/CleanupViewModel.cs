@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OtimizaPC.App.Services;
 using OtimizaPC.Cleaning;
+using OtimizaPC.Cleaning.Analysis;
 using OtimizaPC.Core;
 
 namespace OtimizaPC.App.ViewModels
@@ -63,6 +64,23 @@ namespace OtimizaPC.App.ViewModels
         private bool _isBlocked;
 
         public long SelectedBytes => IsSelected && !IsBlocked && Scan != null && State == CleanupItemState.Scanned ? Scan.Bytes : 0;
+
+        /// <summary>Prepara o item para uma nova análise, descartando o resultado anterior.</summary>
+        public void ApplyScanning()
+        {
+            Scan = null;
+            IsBlocked = false;
+            State = CleanupItemState.Scanning;
+            StatusText = "Analisando…";
+            OnPropertyChanged(nameof(SelectedBytes));
+        }
+
+        public void ApplyCancelled()
+        {
+            State = CleanupItemState.Idle;
+            StatusText = "Cancelado";
+            OnPropertyChanged(nameof(SelectedBytes));
+        }
 
         public void ApplyScan(CleanupScan scan)
         {
@@ -187,9 +205,11 @@ namespace OtimizaPC.App.ViewModels
                 foreach (var item in items) item.PropertyChanged += OnItemChanged;
                 Groups.Add(new CleanupGroupViewModel(group.Key, items));
             }
-            if (!AppInfo.IsAdministrator)
-                StatusMessage = "Executando sem administrador: itens do sistema estão desabilitados.";
+            StatusMessage = DefaultStatus;
         }
+
+        private static string DefaultStatus =>
+            AppInfo.IsAdministrator ? null : "Executando sem administrador: itens do sistema estão desabilitados.";
 
         private void OnItemChanged(object sender, PropertyChangedEventArgs e)
         {
@@ -216,59 +236,78 @@ namespace OtimizaPC.App.ViewModels
             IsBusy = true;
             Progress = 0;
             Headline = "Analisando…";
+            HasScanned = false;
+            // Um novo scan não pode reutilizar tamanhos/seleções da análise anterior
+            foreach (var item in items) item.ApplyScanning();
             _cts = new CancellationTokenSource();
             var token = _cts.Token;
             var done = 0;
+            var byCleaner = items.ToDictionary(i => i.Cleaner);
 
             try
             {
-                using (var gate = new SemaphoreSlim(ScanConcurrency))
+                IProgress<CleanupScanOutcome> progress = new Progress<CleanupScanOutcome>(outcome =>
                 {
-                    var tasks = items.Select(async item =>
-                    {
-                        await gate.WaitAsync(token);
-                        try
-                        {
-                            item.State = CleanupItemState.Scanning;
-                            item.StatusText = "Analisando…";
-                            var scan = await Task.Run(() => item.Cleaner.Scan(token), token);
-                            item.ApplyScan(scan);
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            item.State = CleanupItemState.Idle;
-                            item.StatusText = "Cancelado";
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error($"Falha ao analisar '{item.Name}'", ex);
-                            item.ApplyError("Erro: " + ex.Message);
-                        }
-                        finally
-                        {
-                            gate.Release();
-                            Progress = ++done * 100.0 / items.Count;
-                        }
-                    });
-                    await Task.WhenAll(tasks);
-                }
+                    ApplyScanOutcome(outcome, byCleaner);
+                    Progress = Interlocked.Increment(ref done) * 100.0 / items.Count;
+                });
 
-                HasScanned = true;
-                var total = items.Where(i => i.Scan != null).Sum(i => i.Scan.Bytes);
-                Headline = token.IsCancellationRequested
-                    ? "Análise cancelada"
-                    : $"{Format.Bytes(total)} podem ser liberados";
-                Log.Info($"Análise de limpeza concluída: {Format.Bytes(total)} em {items.Count} itens");
+                var result = await CleanupAnalyzer.ScanAsync(
+                    items.Select(i => i.Cleaner), token, progress.Report, ScanConcurrency);
+
+                // Só uma análise completa libera a limpeza; cancelamento ou falha deixam a análise parcial
+                HasScanned = result.IsComplete;
+
+                if (result.WasCancelled)
+                {
+                    Headline = "Análise cancelada";
+                    StatusMessage = "A análise foi cancelada: analise novamente para liberar a limpeza.";
+                    Log.Warn($"Análise de limpeza cancelada após {result.ScannedCount} de {items.Count} itens");
+                }
+                else if (result.HasErrors)
+                {
+                    var failed = result.Items.Count(i => i.Error != null);
+                    Headline = "Análise incompleta";
+                    StatusMessage = $"{failed} item(ns) não puderam ser analisados. Analise novamente para liberar a limpeza.";
+                    Log.Warn($"Análise de limpeza incompleta: {failed} item(ns) com falha");
+                }
+                else
+                {
+                    Headline = $"{Format.Bytes(result.TotalBytes)} podem ser liberados";
+                    StatusMessage = DefaultStatus;
+                    Log.Info($"Análise de limpeza concluída: {Format.Bytes(result.TotalBytes)} em {result.ScannedCount} itens");
+                }
             }
             catch (OperationCanceledException)
             {
+                HasScanned = false;
                 Headline = "Análise cancelada";
+                StatusMessage = "A análise foi cancelada: analise novamente para liberar a limpeza.";
             }
             finally
             {
                 IsBusy = false;
                 OnPropertyChanged(nameof(SelectedTotalText));
             }
+        }
+
+        private void ApplyScanOutcome(CleanupScanOutcome outcome, IDictionary<Cleaner, CleanupItemViewModel> byCleaner)
+        {
+            if (!byCleaner.TryGetValue(outcome.Cleaner, out var item)) return;
+
+            if (outcome.WasCancelled)
+            {
+                item.ApplyCancelled();
+                return;
+            }
+
+            if (outcome.Error != null)
+            {
+                item.ApplyError("Erro: " + outcome.Error);
+                return;
+            }
+
+            item.ApplyScan(outcome.Scan);
         }
 
         private bool CanRunClean() => HasScanned && !IsBusy;

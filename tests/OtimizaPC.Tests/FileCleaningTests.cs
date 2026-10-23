@@ -221,6 +221,15 @@ namespace OtimizaPC.Tests
         }
 
         [Fact]
+        public void SafePath_RecusaRaizDeUnidadeSemVirarDiretorioAtual()
+        {
+            // "C:" é relativo à unidade; não pode ser confundido com o diretório atual nem liberado
+            Assert.False(SafePath.IsAllowed(new FileTarget("C:")));
+            Assert.False(SafePath.IsAllowed(new FileTarget(@"C:\")));
+            Assert.Equal(@"C:\", new FileTarget(@"C:\").Root);
+        }
+
+        [Fact]
         public void SafePath_PermiteArquivoEspecificoEmPastaProtegida()
         {
             Assert.True(SafePath.IsAllowed(new FileTarget("%WINDIR%", "MEMORY.DMP", recursive: false)));

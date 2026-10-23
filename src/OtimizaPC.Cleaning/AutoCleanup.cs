@@ -72,12 +72,22 @@ namespace OtimizaPC.Cleaning
             try
             {
                 var code = RunSchtasks($"/Create /TN \"{TaskName}\" /XML \"{xmlPath}\" /F");
-                if (code != 0) throw new InvalidOperationException($"O Agendador de Tarefas recusou a criação (código {code}). É preciso executar como administrador.");
+                if (code != 0)
+                    throw new InvalidOperationException(
+                        $"O Agendador de Tarefas recusou a criação (código {code}). " +
+                        "Execute o NutriOtimiza como administrador e verifique se o serviço 'Agendador de Tarefas' está em execução.");
                 History.Record("Limpeza automática", "Agendamento semanal ativado");
             }
             finally
             {
-                File.Delete(xmlPath);
+                try
+                {
+                    File.Delete(xmlPath);
+                }
+                catch
+                {
+                    // Não deixa a falha de limpeza do temporário esconder o erro real do agendamento
+                }
             }
         }
 
@@ -172,7 +182,9 @@ namespace OtimizaPC.Cleaning
                 // O timeout original continua sendo o erro relevante para o chamador.
             }
 
-            throw new TimeoutException($"O Agendador de Tarefas não respondeu em {timeoutMs / 1000} s.");
+            throw new TimeoutException(
+                $"O Agendador de Tarefas não respondeu em {timeoutMs / 1000.0:0.#} s e foi encerrado. " +
+                "Verifique se o serviço 'Agendador de Tarefas' está em execução e tente novamente como administrador.");
         }
     }
 }

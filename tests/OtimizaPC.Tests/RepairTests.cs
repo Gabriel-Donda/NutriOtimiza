@@ -153,7 +153,7 @@ namespace OtimizaPC.Tests
                 await Task.Delay(100);
             }
 
-            Assert.True(false, $"o processo {pid} continua ativo depois de 5 s");
+            Assert.Fail($"o processo {pid} continua ativo depois de 5 s");
         }
 
         // ---------- Telas azuis ----------
