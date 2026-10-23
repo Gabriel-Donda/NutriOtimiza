@@ -18,6 +18,8 @@ namespace OtimizaPC.Tweaks.Startup
         CommonFolder,
     }
 
+    public enum StartupApprovalState { NotConfigured, Enabled, Disabled, InvalidData, AccessDenied, ReadError }
+
     public sealed class StartupEntry
     {
         public string Name { get; set; }
@@ -30,7 +32,12 @@ namespace OtimizaPC.Tweaks.Startup
 
         public StartupSource Source { get; set; }
 
+        /// <summary>Projeção para consumidores antigos; consulte IsStateKnown antes de exibir o estado.</summary>
         public bool IsEnabled { get; set; }
+        public StartupApprovalState ApprovalState { get; internal set; }
+        public string ApprovalMessage { get; internal set; }
+        public bool IsStateKnown => ApprovalState == StartupApprovalState.NotConfigured ||
+            ApprovalState == StartupApprovalState.Enabled || ApprovalState == StartupApprovalState.Disabled;
 
         public bool RequiresAdmin => Source == StartupSource.MachineRun || Source == StartupSource.MachineRun32 || Source == StartupSource.CommonFolder;
 
@@ -71,7 +78,7 @@ namespace OtimizaPC.Tweaks.Startup
             AddFolder(entries, Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup), StartupSource.CommonFolder);
 
             foreach (var entry in entries)
-                entry.IsEnabled = ReadEnabled(entry);
+                ReadApproval(entry);
             return entries.OrderBy(e => e.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
         }
 
@@ -84,6 +91,8 @@ namespace OtimizaPC.Tweaks.Startup
                 key.SetValue(entry.Name, ApprovedValue(enabled), RegistryValueKind.Binary);
             }
             entry.IsEnabled = enabled;
+            entry.ApprovalState = enabled ? StartupApprovalState.Enabled : StartupApprovalState.Disabled;
+            entry.ApprovalMessage = null;
             History.Record("Inicialização", $"{(enabled ? "Ativado" : "Desativado")}: {entry.Name} ({entry.LocationText})");
         }
 
@@ -96,21 +105,40 @@ namespace OtimizaPC.Tweaks.Startup
             return value;
         }
 
-        private static bool ReadEnabled(StartupEntry entry)
+        internal static StartupApprovalState ParseApproval(object value)
+        {
+            if (value == null) return StartupApprovalState.NotConfigured;
+            if (!(value is byte[] data) || data.Length != 12 || data[1] != 0 || data[2] != 0 || data[3] != 0)
+                return StartupApprovalState.InvalidData;
+            switch (data[0])
+            {
+                case 2: case 6: return StartupApprovalState.Enabled;
+                case 3: case 7: return StartupApprovalState.Disabled;
+                default: return StartupApprovalState.InvalidData;
+            }
+        }
+
+        internal static void ReadApproval(StartupEntry entry, Func<RegistryHive, string, string, object> read = null)
         {
             var (hive, path) = ApprovedLocation(entry.Source);
             try
             {
-                using (var key = RegistryAccess.Open(hive, path, writable: false))
-                {
-                    // Sem registro em StartupApproved = ativado; bit 0 ligado = desativado
-                    return !(key?.GetValue(entry.Name) is byte[] data) || data.Length == 0 || (data[0] & 1) == 0;
-                }
+                object value;
+                if (read != null) value = read(hive, path, entry.Name);
+                else using (var key = RegistryAccess.Open(hive, path, writable: false)) value = key?.GetValue(entry.Name);
+                entry.ApprovalState = ParseApproval(value);
+                entry.ApprovalMessage = entry.ApprovalState == StartupApprovalState.InvalidData
+                    ? "Dados StartupApproved inválidos; estado desconhecido." : null;
             }
-            catch
+            catch (Exception ex)
             {
-                return true;
+                entry.ApprovalState = ex is UnauthorizedAccessException || ex is System.Security.SecurityException
+                    ? StartupApprovalState.AccessDenied : StartupApprovalState.ReadError;
+                entry.ApprovalMessage = (entry.ApprovalState == StartupApprovalState.AccessDenied
+                    ? "Acesso negado ao StartupApproved: " : "Falha ao ler StartupApproved: ") + ex.Message;
             }
+            entry.IsEnabled = entry.ApprovalState == StartupApprovalState.Enabled || entry.ApprovalState == StartupApprovalState.NotConfigured;
+            if (entry.ApprovalMessage != null) Log.Warn($"{entry.Name} ({entry.LocationText}): {entry.ApprovalMessage}");
         }
 
         private static (RegistryHive Hive, string Path) ApprovedLocation(StartupSource source)

@@ -15,8 +15,17 @@ namespace OtimizaPC.Tweaks.Apps
         /// <summary>Reinstalado direto dos arquivos que continuam no sistema.</summary>
         Reinstalled,
 
-        /// <summary>Arquivos não existem mais: a página do app na Microsoft Store foi aberta.</summary>
+        /// <summary>Registro indisponível ou não confirmado: Store aberta, instalação ainda pendente.</summary>
         OpenedStore,
+        Failed,
+    }
+
+    public sealed class ReinstallResult
+    {
+        public ReinstallOutcome Outcome { get; internal set; }
+        public string FallbackReason { get; internal set; }
+        public string Error { get; internal set; }
+        public IReadOnlyList<AppPackage> InstalledApps { get; internal set; }
     }
 
     [DataContract]
@@ -37,9 +46,19 @@ namespace OtimizaPC.Tweaks.Apps
     public sealed class AppxService
     {
         private readonly string _removedFile;
+        private readonly Func<string, PowerShellResult> _run;
+        private readonly Func<string, bool> _fileExists;
+        private readonly Action<string> _openStore;
 
         public AppxService(string removedFile = null)
+            : this(removedFile, script => PowerShellRunner.Run(script), File.Exists, uri => { Process.Start(uri); }) { }
+
+        internal AppxService(string removedFile, Func<string, PowerShellResult> run,
+            Func<string, bool> fileExists, Action<string> openStore)
         {
+            _run = run;
+            _fileExists = fileExists;
+            _openStore = openStore;
             _removedFile = removedFile ?? Path.Combine(AppInfo.DataDirectory, "removed-apps.json");
         }
 
@@ -51,7 +70,7 @@ namespace OtimizaPC.Tweaks.Apps
                 "@{n='NonRemovable';e={[bool]$_.NonRemovable}}, InstallLocation; " +
                 "ConvertTo-Json -Compress -Depth 2 -InputObject @($list)";
 
-            var result = PowerShellRunner.Run(script);
+            var result = _run(script);
             if (!result.Success)
                 throw new InvalidOperationException("Não foi possível listar os apps: " + (result.Error ?? "código " + result.ExitCode));
 
@@ -116,7 +135,7 @@ namespace OtimizaPC.Tweaks.Apps
         public void Remove(AppPackage package, string displayName, bool alsoForNewUsers)
         {
             var script = $"Remove-AppxPackage -Package {PowerShellRunner.Quote(package.PackageFullName)}";
-            var result = PowerShellRunner.Run(script);
+            var result = _run(script);
             if (!result.Success)
                 throw new InvalidOperationException(result.Error ?? "código " + result.ExitCode);
 
@@ -125,7 +144,7 @@ namespace OtimizaPC.Tweaks.Apps
                 var deprovision =
                     $"Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName -eq {PowerShellRunner.Quote(package.Name)} }} | " +
                     "ForEach-Object { Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName | Out-Null }";
-                var provisioned = PowerShellRunner.Run(deprovision);
+                var provisioned = _run(deprovision);
                 if (!provisioned.Success)
                     Log.Warn($"Removido do usuário, mas não do provisionamento ({package.Name}): {provisioned.Error}");
             }
@@ -150,21 +169,53 @@ namespace OtimizaPC.Tweaks.Apps
         /// </summary>
         public ReinstallOutcome Reinstall(RemovedApp app)
         {
-            var manifest = string.IsNullOrEmpty(app.InstallLocation) ? null : Path.Combine(app.InstallLocation, "AppxManifest.xml");
-            if (manifest != null && File.Exists(manifest))
-            {
-                var result = PowerShellRunner.Run($"Add-AppxPackage -DisableDevelopmentMode -Register {PowerShellRunner.Quote(manifest)}");
-                if (result.Success)
-                {
-                    ForgetRemoved(app.Name);
-                    History.Record("Apps", $"Reinstalado: {app.DisplayName} ({app.Name})");
-                    return ReinstallOutcome.Reinstalled;
-                }
-                Log.Warn($"Falha ao registrar {app.Name} de novo: {result.Error}");
-            }
+            var result = ReinstallDetailed(app);
+            if (result.Outcome == ReinstallOutcome.Failed) throw new InvalidOperationException(result.Error);
+            return result.Outcome;
+        }
 
-            Process.Start("ms-windows-store://pdp/?PFN=" + Uri.EscapeDataString(app.PackageFamilyName ?? app.Name));
-            return ReinstallOutcome.OpenedStore;
+        /// <summary>Confirma o registro pela lista instalada e preserva o motivo de abrir a Store.</summary>
+        public ReinstallResult ReinstallDetailed(RemovedApp app)
+        {
+            if (app == null) throw new ArgumentNullException(nameof(app));
+            var result = new ReinstallResult { Outcome = ReinstallOutcome.Failed };
+            try
+            {
+                var manifest = string.IsNullOrEmpty(app.InstallLocation) ? null : Path.Combine(app.InstallLocation, "AppxManifest.xml");
+                if (manifest != null && _fileExists(manifest))
+                {
+                    try
+                    {
+                        var registration = _run($"Add-AppxPackage -DisableDevelopmentMode -Register {PowerShellRunner.Quote(manifest)}");
+                        if (registration.Success)
+                        {
+                            result.InstalledApps = ListInstalled();
+                            if (result.InstalledApps.Any(p => string.Equals(p.Name, app.Name, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                SyncRemoved(result.InstalledApps);
+                                result.Outcome = ReinstallOutcome.Reinstalled;
+                                History.Record("Apps", $"Reinstalado: {app.DisplayName} ({app.Name})");
+                                return result;
+                            }
+                            result.FallbackReason = "O registro terminou, mas o app não aparece na lista de instalados.";
+                        }
+                        else result.FallbackReason = registration.Error ?? "Falha no registro: código " + registration.ExitCode;
+                    }
+                    catch (Exception ex) { result.FallbackReason = "Falha ao registrar ou verificar: " + ex.Message; }
+                }
+                else result.FallbackReason = "Manifesto AppxManifest.xml ausente.";
+                Log.Warn($"Reinstalação de {app.Name}: {result.FallbackReason}");
+                _openStore("ms-windows-store://pdp/?PFN=" + Uri.EscapeDataString(app.PackageFamilyName ?? app.Name));
+                result.Outcome = ReinstallOutcome.OpenedStore;
+                History.Record("Apps", $"Store aberta para {app.Name}; instalação pendente. Motivo: {result.FallbackReason}");
+            }
+            catch (Exception ex)
+            {
+                result.Outcome = ReinstallOutcome.Failed;
+                result.Error = "Não foi possível reinstalar ou abrir a Store: " + ex.Message;
+                Log.Warn($"{result.Error}. Motivo: {result.FallbackReason}");
+            }
+            return result;
         }
 
         public List<RemovedApp> LoadRemoved()
@@ -188,12 +239,6 @@ namespace OtimizaPC.Tweaks.Apps
             var names = new HashSet<string>(installed.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
             var removed = LoadRemoved();
             if (removed.RemoveAll(r => names.Contains(r.Name)) > 0) SaveRemoved(removed);
-        }
-
-        private void ForgetRemoved(string name)
-        {
-            var removed = LoadRemoved();
-            if (removed.RemoveAll(r => r.Name == name) > 0) SaveRemoved(removed);
         }
 
         internal void SaveRemoved(List<RemovedApp> removed)
