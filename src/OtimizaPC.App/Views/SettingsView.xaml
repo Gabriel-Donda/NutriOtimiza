@@ -36,6 +36,25 @@
                 </Grid>
             </ui:Card>
 
+            <ui:Card Style="{StaticResource SettingCard}">
+                <DockPanel>
+                    <ui:ToggleSwitch
+                        AutomationProperties.Name="Animações"
+                        DockPanel.Dock="Right"
+                        IsChecked="{Binding AnimationsEnabled}" />
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Animações" />
+                        <TextBlock Style="{StaticResource SecondaryText}" Text="Transições e entradas suaves, de até 0,3 s. Desligue se o computador estiver lento." />
+                        <TextBlock
+                            FontSize="12"
+                            Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                            Text="{Binding AnimationsNote}"
+                            TextWrapping="Wrap"
+                            Visibility="{Binding AnimationsNote, Converter={StaticResource NullToCollapsed}}" />
+                    </StackPanel>
+                </DockPanel>
+            </ui:Card>
+
             <!-- Atualizações -->
             <TextBlock Margin="0,16,0,8" Style="{StaticResource SectionTitle}" Text="Atualizações" />
             <ui:Card Style="{StaticResource SettingCard}">

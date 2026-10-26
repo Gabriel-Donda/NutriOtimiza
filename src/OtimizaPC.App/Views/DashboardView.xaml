@@ -103,6 +103,7 @@
                                     FontSize="28"
                                     FontWeight="SemiBold"
                                     Text="{Binding Value}"
+                                    controls:MotionBehaviors.PulseOnChange="True"
                                     TextTrimming="CharacterEllipsis">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
@@ -168,10 +169,10 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock FontWeight="SemiBold" Text="CPU" />
-                                <ProgressBar Grid.Column="1" Height="8" Margin="12,0" Maximum="100" Value="{Binding CpuTemperature, Mode=OneWay}" />
+                                <ProgressBar Grid.Column="1" Height="8" Margin="12,0" Maximum="100" controls:MotionBehaviors.AnimatedValue="{Binding CpuTemperature, Mode=OneWay}" />
                                 <TextBlock Grid.Column="2" Foreground="{Binding TemperatureStatus, Converter={StaticResource StatusToBrush}}" Text="{Binding CpuTemperatureText}" />
                                 <TextBlock Grid.Row="1" Margin="0,10,0,0" FontWeight="SemiBold" Text="GPU" />
-                                <ProgressBar Grid.Row="1" Grid.Column="1" Height="8" Margin="12,10,12,0" Maximum="100" Value="{Binding GpuTemperature, Mode=OneWay}" />
+                                <ProgressBar Grid.Row="1" Grid.Column="1" Height="8" Margin="12,10,12,0" Maximum="100" controls:MotionBehaviors.AnimatedValue="{Binding GpuTemperature, Mode=OneWay}" />
                                 <TextBlock Grid.Row="1" Grid.Column="2" Margin="0,10,0,0" Foreground="{Binding TemperatureStatus, Converter={StaticResource StatusToBrush}}" Text="{Binding GpuTemperatureText}" />
                             </Grid>
                         </StackPanel>
@@ -219,7 +220,7 @@
                                                 <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
                                             <TextBlock FontWeight="SemiBold" Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}" />
-                                            <ProgressBar Grid.Row="1" Height="7" Margin="0,4,0,0" Maximum="100" Value="{Binding UsedPercent, Mode=OneWay}" ToolTip="{Binding UsedText}" />
+                                            <ProgressBar Grid.Row="1" Height="7" Margin="0,4,0,0" Maximum="100" controls:MotionBehaviors.AnimatedValue="{Binding UsedPercent, Mode=OneWay}" ToolTip="{Binding UsedText}" />
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -260,7 +261,7 @@
                                                 Height="7"
                                                 Margin="8,0"
                                                 Maximum="100"
-                                                Value="{Binding Usage, Mode=OneWay}"
+                                                controls:MotionBehaviors.AnimatedValue="{Binding Usage, Mode=OneWay}"
                                                 Foreground="{Binding Status, Converter={StaticResource StatusToBrush}}" />
                                             <TextBlock Grid.Column="2" Margin="0,0,4,0" FontSize="11" Text="{Binding UsageText}" TextAlignment="Right" TextTrimming="CharacterEllipsis" />
                                         </Grid>
@@ -382,7 +383,7 @@
                             Height="8"
                             Margin="0,0,0,12"
                             Maximum="100"
-                            Value="{Binding Score, Mode=OneWay}"
+                            controls:MotionBehaviors.AnimatedValue="{Binding Score, Mode=OneWay}"
                             ToolTip="Pontuação de saúde do sistema" />
 
                         <StackPanel Visibility="{Binding AreHealthDetailsVisible, Converter={StaticResource BoolToVisibility}}">

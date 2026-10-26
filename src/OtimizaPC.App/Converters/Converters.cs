@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
 using OtimizaPC.Core;
 using OtimizaPC.Core.Models;
+using OtimizaPC.Repair.Fixes;
 using Wpf.Ui.Controls;
 
 namespace OtimizaPC.App.Converters
@@ -102,6 +103,54 @@ namespace OtimizaPC.App.Converters
                 default: key = "StatusInfoBrush"; break;
             }
             return Application.Current.TryFindResource(key) as Brush ?? Brushes.Gray;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+            throw new NotSupportedException();
+    }
+
+    /// <summary>Converte EventDiagnosisClass em rótulo localizado para o selo do cartão.</summary>
+    public sealed class DiagnosisClassToLabelConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (!(value is EventDiagnosisClass cls)) return "?";
+            switch (cls)
+            {
+                case EventDiagnosisClass.Real: return "Real";
+                case EventDiagnosisClass.Hardware: return "Hardware";
+                case EventDiagnosisClass.Informativo: return "Informativo";
+                default: return cls.ToString();
+            }
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+            throw new NotSupportedException();
+    }
+
+    /// <summary>Converte EventDiagnosisClass em Brush para o fundo do selo (amarelo/vermelho/azul).</summary>
+    public sealed class DiagnosisClassToBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (!(value is EventDiagnosisClass cls)) return Brushes.Gray;
+            switch (cls)
+            {
+                case EventDiagnosisClass.Real:
+                    // Amarelo — problema real
+                    return Application.Current.TryFindResource("StatusWarningBrush") as Brush
+                           ?? new SolidColorBrush(Color.FromRgb(0xD2, 0x99, 0x22));
+                case EventDiagnosisClass.Hardware:
+                    // Vermelho — problema de hardware
+                    return Application.Current.TryFindResource("StatusCriticalBrush") as Brush
+                           ?? new SolidColorBrush(Color.FromRgb(0xE5, 0x53, 0x4B));
+                case EventDiagnosisClass.Informativo:
+                    // Azul — informativo
+                    return Application.Current.TryFindResource("StatusInfoBrush") as Brush
+                           ?? new SolidColorBrush(Color.FromRgb(0x4C, 0x8E, 0xDA));
+                default:
+                    return Brushes.Gray;
+            }
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>

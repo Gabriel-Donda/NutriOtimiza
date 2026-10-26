@@ -106,13 +106,14 @@ namespace OtimizaPC.Tests
             try
             {
                 var store = new SettingsStore(file);
-                store.Save(new AppSettings { Theme = ThemePreference.Dark, CheckUpdatesOnStartup = false, UpdateRepository = "a/b", CollapsedSensorGroups = new System.Collections.Generic.List<string> { "cpu-0" }, CollapsedHardwareSections = new System.Collections.Generic.List<string> { "memory", "gpu" } });
+                store.Save(new AppSettings { Theme = ThemePreference.Dark, CheckUpdatesOnStartup = false, UpdateRepository = "a/b", CollapsedSensorGroups = new System.Collections.Generic.List<string> { "cpu-0" }, CollapsedHardwareSections = new System.Collections.Generic.List<string> { "memory", "gpu" }, CollapsedCleanupGroups = new System.Collections.Generic.List<string> { "Navegadores" } });
                 var loaded = store.Load();
                 Assert.Equal(ThemePreference.Dark, loaded.Theme);
                 Assert.False(loaded.CheckUpdatesOnStartup);
                 Assert.Equal("a/b", loaded.UpdateRepository);
                 Assert.Equal(new[] { "cpu-0" }, loaded.CollapsedSensorGroups);
                 Assert.Equal(new[] { "memory", "gpu" }, loaded.CollapsedHardwareSections);
+                Assert.Equal(new[] { "Navegadores" }, loaded.CollapsedCleanupGroups);
 
                 // Arquivo de uma versão anterior, sem os campos novos
                 File.WriteAllText(file, "{}");
@@ -121,6 +122,7 @@ namespace OtimizaPC.Tests
                 Assert.Equal(string.Empty, old.UpdateRepository);
                 Assert.Empty(old.CollapsedSensorGroups);
                 Assert.Empty(old.CollapsedHardwareSections);
+                Assert.Empty(old.CollapsedCleanupGroups);
             }
             finally
             {

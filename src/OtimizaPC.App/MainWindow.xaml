@@ -231,7 +231,12 @@
                             <TextBlock VerticalAlignment="Center" Text="{Binding UpdateBanner}" />
                         </DockPanel>
                     </Border>
-                    <ContentControl Content="{Binding SelectedItem.Page}" Focusable="False" />
+                    <!-- PageHost/PageOffset: transição ao trocar de tela (ver MotionService.PlayPageEnter) -->
+                    <ContentControl x:Name="PageHost" Content="{Binding SelectedItem.Page}" Focusable="False">
+                        <ContentControl.RenderTransform>
+                            <TranslateTransform x:Name="PageOffset" />
+                        </ContentControl.RenderTransform>
+                    </ContentControl>
                 </DockPanel>
             </Border>
         </Grid>

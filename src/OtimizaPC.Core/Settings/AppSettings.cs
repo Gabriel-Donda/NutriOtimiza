@@ -33,11 +33,17 @@ namespace OtimizaPC.Core.Settings
 
         [DataMember] public DateTime? LastUpdateCheck { get; set; }
 
+        /// <summary>Transições e efeitos de movimento. O app ainda os desliga sozinho com o Windows sem animações, em acesso remoto ou em PC fraco.</summary>
+        [DataMember] public bool AnimationsEnabled { get; set; } = true;
+
         /// <summary>Identificadores dos componentes de sensores que o usuário recolheu.</summary>
         [DataMember] public List<string> CollapsedSensorGroups { get; set; } = new List<string>();
 
         /// <summary>Identificadores das seções de hardware que o usuário recolheu.</summary>
         [DataMember] public List<string> CollapsedHardwareSections { get; set; } = new List<string>();
+
+        /// <summary>Identificadores dos grupos de limpeza que o usuário recolheu.</summary>
+        [DataMember] public List<string> CollapsedCleanupGroups { get; set; } = new List<string>();
 
         // O DataContractJsonSerializer não executa inicializadores de propriedade: valores padrão para campos ausentes
         [OnDeserializing]
@@ -47,8 +53,10 @@ namespace OtimizaPC.Core.Settings
             CheckUpdatesOnStartup = true;
             AutoInstallUpdates = true;
             UpdateRepository = string.Empty;
+            AnimationsEnabled = true;
             CollapsedSensorGroups = new List<string>();
             CollapsedHardwareSections = new List<string>();
+            CollapsedCleanupGroups = new List<string>();
         }
     }
 
@@ -72,6 +80,7 @@ namespace OtimizaPC.Core.Settings
                     var settings = (AppSettings)new DataContractJsonSerializer(typeof(AppSettings)).ReadObject(stream) ?? new AppSettings();
                     if (settings.CollapsedSensorGroups == null) settings.CollapsedSensorGroups = new List<string>();
                     if (settings.CollapsedHardwareSections == null) settings.CollapsedHardwareSections = new List<string>();
+                    if (settings.CollapsedCleanupGroups == null) settings.CollapsedCleanupGroups = new List<string>();
                     return settings;
                 }
             }

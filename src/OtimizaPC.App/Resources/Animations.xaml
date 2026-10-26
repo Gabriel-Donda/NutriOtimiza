@@ -1,0 +1,32 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!--
+        Tokens de movimento do app. O MotionService lê estes valores; quando as animações
+        estão desligadas (preferência, Windows, RDP ou PC fraco) nada é animado.
+        Mantenha as durações entre 150 e 300 ms para o app continuar rápido.
+    -->
+
+    <!-- Durações (ms) -->
+    <sys:Int32 x:Key="MotionFastMs">150</sys:Int32>
+    <sys:Int32 x:Key="MotionNormalMs">220</sys:Int32>
+    <sys:Int32 x:Key="MotionSlowMs">300</sys:Int32>
+
+    <!-- Intervalo entre cards na entrada escalonada (ms) -->
+    <sys:Int32 x:Key="MotionStaggerStepMs">30</sys:Int32>
+
+    <!-- Deslocamentos (px) -->
+    <sys:Double x:Key="MotionPageOffsetPx">8</sys:Double>
+    <sys:Double x:Key="MotionCardOffsetPx">10</sys:Double>
+    <sys:Double x:Key="MotionCardLiftPx">2</sys:Double>
+    <sys:Double x:Key="MotionButtonLiftPx">1</sys:Double>
+
+    <!-- Escala ao pressionar e opacidade inicial de textos que mudaram de valor -->
+    <sys:Double x:Key="MotionPressScale">0.985</sys:Double>
+    <sys:Double x:Key="MotionPulseFromOpacity">0.7</sys:Double>
+
+    <!-- Curva suave de saída: começa rápido e termina devagar -->
+    <CubicEase x:Key="MotionEaseOut" EasingMode="EaseOut" />
+</ResourceDictionary>

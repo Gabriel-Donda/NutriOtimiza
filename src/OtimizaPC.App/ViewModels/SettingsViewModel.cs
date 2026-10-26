@@ -48,6 +48,9 @@ namespace OtimizaPC.App.ViewModels
         private int _themeIndex;
 
         [ObservableProperty]
+        private bool _animationsEnabled;
+
+        [ObservableProperty]
         private bool _checkUpdatesOnStartup;
 
         [ObservableProperty]
@@ -88,6 +91,7 @@ namespace OtimizaPC.App.ViewModels
 
             _suppress = true;
             ThemeIndex = (int)_settings.Theme;
+            AnimationsEnabled = _settings.AnimationsEnabled;
             CheckUpdatesOnStartup = _settings.CheckUpdatesOnStartup;
             AutoInstallUpdates = _settings.AutoInstallUpdates;
             UpdateRepository = _settings.UpdateRepository;
@@ -130,8 +134,12 @@ namespace OtimizaPC.App.ViewModels
         /// <summary>Avisa a janela principal quando há atualização (para o aviso no topo).</summary>
         public event EventHandler UpdateFound;
 
+        /// <summary>Motivo pelo qual as animações estão desligadas apesar de ligadas aqui (null se estão liberadas).</summary>
+        public string AnimationsNote => AnimationsEnabled ? MotionService.DisabledReason() : null;
+
         public void OnActivated()
         {
+            OnPropertyChanged(nameof(AnimationsNote));
             SensorSetup.RefreshInstalledState();
             _ = RefreshCleanupStateAsync();
             LoadHistory();
@@ -149,6 +157,15 @@ namespace OtimizaPC.App.ViewModels
             _settings.Theme = (ThemePreference)value;
             _store.Save(_settings);
             ThemeService.Apply(_settings.Theme);
+        }
+
+        partial void OnAnimationsEnabledChanged(bool value)
+        {
+            if (_suppress) return;
+            _settings.AnimationsEnabled = value;
+            _store.Save(_settings);
+            MotionService.Configure(value);
+            OnPropertyChanged(nameof(AnimationsNote));
         }
 
         partial void OnCheckUpdatesOnStartupChanged(bool value)

@@ -14,6 +14,8 @@ using OtimizaPC.App.Services;
 using OtimizaPC.Cleaning;
 using OtimizaPC.Cleaning.Analysis;
 using OtimizaPC.Core;
+using OtimizaPC.Core.Settings;
+using Wpf.Ui.Controls;
 
 namespace OtimizaPC.App.ViewModels
 {
@@ -195,7 +197,7 @@ namespace OtimizaPC.App.ViewModels
             State = CleanupItemState.Scanned;
             if (!scan.SizeKnown)
             {
-                SizeText = "?";
+                SizeText = "Calculado ao limpar";
                 StatusText = scan.Note;
                 return;
             }
@@ -242,7 +244,7 @@ namespace OtimizaPC.App.ViewModels
         partial void OnIsBlockedChanged(bool value) => OnPropertyChanged(nameof(SelectedBytes));
     }
 
-    public sealed class CleanupGroupViewModel
+    public sealed partial class CleanupGroupViewModel : ObservableObject
     {
         public CleanupGroupViewModel(string name, IEnumerable<CleanupItemViewModel> items)
         {
@@ -253,6 +255,29 @@ namespace OtimizaPC.App.ViewModels
         public string Name { get; }
 
         public ObservableCollection<CleanupItemViewModel> Items { get; }
+
+        [ObservableProperty]
+        private bool _isExpanded = true;
+
+        public int ItemCount => Items.Count;
+
+        public string ToggleHint => IsExpanded ? "Clique para recolher" : "Clique para expandir";
+
+        partial void OnIsExpandedChanged(bool value) => OnPropertyChanged(nameof(ToggleHint));
+
+        public SymbolRegular Icon => IconFor(Name);
+
+        private static SymbolRegular IconFor(string name)
+        {
+            switch (name)
+            {
+                case CleanupGroups.Windows: return SymbolRegular.Window24;
+                case CleanupGroups.Browsers: return SymbolRegular.Globe24;
+                case CleanupGroups.Apps: return SymbolRegular.Apps24;
+                case CleanupGroups.Privacy: return SymbolRegular.Shield24;
+                default: return SymbolRegular.Broom24;
+            }
+        }
     }
 
     public partial class CleanupViewModel : ObservableObject, IActivatable
@@ -260,8 +285,11 @@ namespace OtimizaPC.App.ViewModels
         private const int ScanConcurrency = 4;
 
         private readonly IDialogService _dialogs;
+        private readonly SettingsStore _store;
+        private readonly AppSettings _settings;
         private CancellationTokenSource _cts;
         private bool _loaded;
+        private bool _changingExpansion;
 
         [ObservableProperty]
         [NotifyCanExecuteChangedFor(nameof(ScanCommand), nameof(CleanCommand), nameof(CancelCommand))]
@@ -282,9 +310,13 @@ namespace OtimizaPC.App.ViewModels
         [ObservableProperty]
         private string _statusMessage;
 
-        public CleanupViewModel(IDialogService dialogs)
+        public CleanupViewModel(IDialogService dialogs, SettingsStore store)
         {
             _dialogs = dialogs;
+            _store = store;
+            _settings = _store.Load();
+            if (_settings.CollapsedCleanupGroups == null)
+                _settings.CollapsedCleanupGroups = new List<string>();
         }
 
         public ObservableCollection<CleanupGroupViewModel> Groups { get; } = new ObservableCollection<CleanupGroupViewModel>();
@@ -294,6 +326,14 @@ namespace OtimizaPC.App.ViewModels
         public string SelectedTotalText => Format.Bytes(AllItems.Sum(i => i.SelectedBytes));
 
         public bool CanClean => HasScanned && !IsBusy;
+
+        public bool ShowPrimaryScan => !IsBusy && !HasScanned;
+
+        public bool ShowSecondaryScan => !IsBusy && HasScanned;
+
+        public bool ShowClean => !IsBusy && HasScanned;
+
+        public bool ShowCancel => IsBusy;
 
         public void OnActivated()
         {
@@ -313,7 +353,12 @@ namespace OtimizaPC.App.ViewModels
             {
                 var items = group.Select(c => new CleanupItemViewModel(c)).ToList();
                 foreach (var item in items) item.PropertyChanged += OnItemChanged;
-                Groups.Add(new CleanupGroupViewModel(group.Key, items));
+                var viewModel = new CleanupGroupViewModel(group.Key, items)
+                {
+                    IsExpanded = !_settings.CollapsedCleanupGroups.Contains(group.Key)
+                };
+                viewModel.PropertyChanged += OnGroupPropertyChanged;
+                Groups.Add(viewModel);
             }
             StatusMessage = DefaultStatus;
         }
@@ -327,11 +372,21 @@ namespace OtimizaPC.App.ViewModels
                 OnPropertyChanged(nameof(SelectedTotalText));
         }
 
-        partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(CanClean));
+        partial void OnIsBusyChanged(bool value)
+        {
+            OnPropertyChanged(nameof(CanClean));
+            OnPropertyChanged(nameof(ShowPrimaryScan));
+            OnPropertyChanged(nameof(ShowSecondaryScan));
+            OnPropertyChanged(nameof(ShowClean));
+            OnPropertyChanged(nameof(ShowCancel));
+        }
 
         partial void OnHasScannedChanged(bool value)
         {
             OnPropertyChanged(nameof(CanClean));
+            OnPropertyChanged(nameof(ShowPrimaryScan));
+            OnPropertyChanged(nameof(ShowSecondaryScan));
+            OnPropertyChanged(nameof(ShowClean));
             CleanCommand.NotifyCanExecuteChanged();
         }
 
@@ -508,6 +563,7 @@ namespace OtimizaPC.App.ViewModels
             }
             finally
             {
+                HasScanned = false;
                 IsBusy = false;
                 OnPropertyChanged(nameof(SelectedTotalText));
             }
@@ -553,6 +609,46 @@ namespace OtimizaPC.App.ViewModels
         private void SelectNone()
         {
             foreach (var item in AllItems) item.IsSelected = false;
+        }
+
+        [RelayCommand]
+        private void ToggleGroup(CleanupGroupViewModel group)
+        {
+            if (group != null) group.IsExpanded = !group.IsExpanded;
+        }
+
+        [RelayCommand]
+        private void CollapseAll()
+        {
+            SetAllGroupsExpanded(false);
+        }
+
+        [RelayCommand]
+        private void ExpandAll()
+        {
+            SetAllGroupsExpanded(true);
+        }
+
+        private void SetAllGroupsExpanded(bool isExpanded)
+        {
+            if (Groups.All(group => group.IsExpanded == isExpanded)) return;
+            _changingExpansion = true;
+            foreach (var group in Groups) group.IsExpanded = isExpanded;
+            _changingExpansion = false;
+            SaveExpansionState();
+        }
+
+        private void OnGroupPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(CleanupGroupViewModel.IsExpanded) && !_changingExpansion)
+                SaveExpansionState();
+        }
+
+        private void SaveExpansionState()
+        {
+            _settings.CollapsedCleanupGroups.Clear();
+            _settings.CollapsedCleanupGroups.AddRange(Groups.Where(group => !group.IsExpanded).Select(group => group.Name));
+            _store.Save(_settings);
         }
     }
 }
