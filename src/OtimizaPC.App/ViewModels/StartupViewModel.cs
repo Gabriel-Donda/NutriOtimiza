@@ -4,8 +4,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using OtimizaPC.App.Services;
 using OtimizaPC.Core;
 using OtimizaPC.Tweaks.Startup;
 
@@ -40,8 +42,13 @@ namespace OtimizaPC.App.ViewModels
 
         public bool CanToggle => !Entry.RequiresAdmin || AppInfo.IsAdministrator;
 
+        public BitmapSource Icon => IconService.FromExecutable(Entry.ExecutablePath);
+
+        public string ActionText => IsEnabled ? "Desativar" : "Ativar";
+
         partial void OnIsEnabledChanged(bool value)
         {
+            OnPropertyChanged(nameof(ActionText));
             if (_suppress) return;
             try
             {
@@ -57,6 +64,9 @@ namespace OtimizaPC.App.ViewModels
                 _report($"Não foi possível alterar \"{Entry.Name}\": {ex.Message}");
             }
         }
+
+        [RelayCommand]
+        private void ToggleEnabled() { if (CanToggle) IsEnabled = !IsEnabled; }
 
         [RelayCommand]
         private void OpenLocation()

@@ -90,16 +90,21 @@ namespace OtimizaPC.Repair.Tools
             var allLines = new List<string>();
             var success = true;
 
-            foreach (var step in _steps)
+            for (var stepIndex = 0; stepIndex < _steps.Count; stepIndex++)
             {
+                var step = _steps[stepIndex];
                 cancellationToken.ThrowIfCancellationRequested();
-                output(new OutputLine($"> {step.Title ?? step.Tool} {step.Arguments}", false));
+                var stepStart = stepIndex * 100 / _steps.Count;
+                output(new OutputLine($"> {step.Title ?? step.Tool} {step.Arguments}", false, false, stepStart));
 
                 var code = await ProcessStreamer.RunAsync(System32(step.Tool), step.Arguments, line =>
                 {
                     if (!line.IsProgress)
                         lock (allLines) allLines.Add(line.Text);
-                    output(line);
+                    output(line.ProgressPercent.HasValue
+                        ? new OutputLine(line.Text, line.IsProgress, line.IsError,
+                            stepStart + line.ProgressPercent.Value * 100 / _steps.Count / 100)
+                        : line);
                 }, cancellationToken).ConfigureAwait(false);
 
                 var ok = Array.IndexOf(step.SuccessCodes, code) >= 0;

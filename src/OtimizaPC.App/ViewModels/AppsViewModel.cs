@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OtimizaPC.App.Services;
@@ -35,6 +36,8 @@ namespace OtimizaPC.App.ViewModels
         public string Description { get; }
 
         public string PackageName => Package.Name;
+
+        public BitmapSource Icon => IconService.FromImageFile(Package.LogoPath);
     }
 
     public sealed class AppGroupViewModel
@@ -66,6 +69,8 @@ namespace OtimizaPC.App.ViewModels
         public string DisplayName => App.DisplayName;
 
         public string Detail => $"{App.Name} · removido em {App.RemovedAt:dd/MM/yyyy HH:mm}";
+
+        public BitmapSource Icon => IconService.FromImageFile(App.LogoPath);
 
         public IAsyncRelayCommand<RemovedAppViewModel> ReinstallCommand { get; }
     }

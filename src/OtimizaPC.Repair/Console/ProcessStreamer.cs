@@ -58,7 +58,12 @@ namespace OtimizaPC.Repair.Console
 
             // Em modo byte, cada linha é decodificada sozinha (ver OutputDecoding)
             var splitter = new LineSplitter((text, progress) =>
-                onLine(new OutputLine(unicode != null ? text : OutputDecoding.DecodeLine(OutputDecoding.Latin1.GetBytes(text)), progress, isError)));
+            {
+                var decoded = unicode != null ? text : OutputDecoding.DecodeLine(OutputDecoding.Latin1.GetBytes(text));
+                int percent;
+                onLine(new OutputLine(decoded, progress, isError,
+                    ProgressParser.TryParse(decoded, out percent) ? (int?)percent : null));
+            });
 
             int read;
             while ((read = await stream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) > 0)

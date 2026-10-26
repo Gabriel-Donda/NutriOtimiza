@@ -157,6 +157,12 @@ namespace OtimizaPC.App.ViewModels
         private bool _isRunning;
 
         [ObservableProperty]
+        private int _progress;
+
+        [ObservableProperty]
+        private string _progressText = "0%";
+
+        [ObservableProperty]
         private string _consoleTitle = "Saída";
 
         [ObservableProperty]
@@ -250,6 +256,8 @@ namespace OtimizaPC.App.ViewModels
             _cts = new CancellationTokenSource();
             IsRunning = true;
             ResultText = null;
+            Progress = 0;
+            ProgressText = "0%";
             ConsoleLines.Clear();
             ConsoleTitle = tool.Name;
             var dispatcher = Application.Current.Dispatcher;
@@ -280,6 +288,11 @@ namespace OtimizaPC.App.ViewModels
 
         private void AppendLine(OutputLine line)
         {
+            if (line.ProgressPercent.HasValue)
+            {
+                Progress = Math.Max(0, Math.Min(100, line.ProgressPercent.Value));
+                ProgressText = Progress + "%";
+            }
             var last = ConsoleLines.Count > 0 ? ConsoleLines[ConsoleLines.Count - 1] : null;
             var item = new ConsoleLineViewModel(line.Text, line.IsError, line.IsProgress);
 

@@ -14,6 +14,7 @@ namespace OtimizaPC.Cleaning
     {
         private static readonly TimeSpan OneDay = TimeSpan.FromDays(1);
         private static readonly TimeSpan OneWeek = TimeSpan.FromDays(7);
+        private static readonly TimeSpan OneMonth = TimeSpan.FromDays(30);
 
         /// <summary>Itens disponíveis neste computador.</summary>
         public static IReadOnlyList<Cleaner> Create() =>
@@ -86,12 +87,42 @@ namespace OtimizaPC.Cleaning
                 },
                 requiresAdmin: true);
 
+            yield return new FileCleaner("windows-update-logs", "Logs antigos do Windows Update",
+                "Rastreamentos ETL do Windows Update com mais de 7 dias.",
+                CleanupGroups.Windows,
+                new[] { new FileTarget(@"%WINDIR%\Logs\WindowsUpdate", "*.etl", recursive: false, minAge: OneWeek) },
+                requiresAdmin: true);
+
+            yield return new FileCleaner("diagnostic-logs", "Logs de diagnóstico antigos",
+                "Rastreamentos ETL de diagnóstico do Windows.",
+                CleanupGroups.Windows,
+                new[] { new FileTarget(@"%ProgramData%\Microsoft\Diagnosis\ETLLogs", "*.etl", minAge: OneWeek) },
+                requiresAdmin: true);
+
+            yield return new FileCleaner("defender-history", "Histórico do Microsoft Defender",
+                "Resultados antigos de verificações do Defender.",
+                CleanupGroups.Windows,
+                new[] { new FileTarget(@"%ProgramData%\Microsoft\Windows Defender\Scans\History\Results", minAge: OneWeek) },
+                CleanupRisk.Moderate, requiresAdmin: true, defaultSelected: false);
+
+            yield return new FileCleaner("iis-logs", "Logs antigos do IIS",
+                "Logs de sites do IIS com mais de 30 dias.",
+                CleanupGroups.Windows,
+                new[] { new FileTarget(@"%SystemDrive%\inetpub\logs\LogFiles", "*.log", minAge: OneMonth) },
+                requiresAdmin: true);
+
+            yield return new FileCleaner("store-cache", "Cache da Microsoft Store",
+                "Cache local da Microsoft Store. Ele será recriado quando necessário.",
+                CleanupGroups.Windows,
+                new[] { new FileTarget(@"%LocalAppData%\Packages\Microsoft.WindowsStore_8wekyb3d8bbwe\LocalCache") });
+
             yield return new FileCleaner("memory-dumps", "Dumps de memória",
                 "Arquivos de diagnóstico de telas azuis e travamentos. Mantenha se for investigar um problema.",
                 CleanupGroups.Windows,
                 new[]
                 {
                     new FileTarget(@"%WINDIR%\Minidump", "*.dmp", recursive: false),
+                    new FileTarget(@"%WINDIR%\LiveKernelReports", "*.dmp"),
                     new FileTarget("%WINDIR%", "MEMORY.DMP", recursive: false),
                     new FileTarget(@"%LocalAppData%\CrashDumps"),
                 },
@@ -102,6 +133,17 @@ namespace OtimizaPC.Cleaning
                 CleanupGroups.Windows,
                 new[] { new FileTarget(@"%LocalAppData%\Microsoft\Windows\Explorer", "thumbcache_*.db", recursive: false) },
                 CleanupRisk.Moderate, defaultSelected: false);
+
+            yield return new FileCleaner("windows-upgrade-remnants", "Restos de atualizações do Windows",
+                "Pastas temporárias deixadas por atualizações anteriores. Confirme que não há atualização em andamento.",
+                CleanupGroups.Windows,
+                new[]
+                {
+                    new FileTarget(@"%SystemDrive%\$WINDOWS.~BT"),
+                    new FileTarget(@"%SystemDrive%\$WINDOWS.~WS"),
+                    new FileTarget(@"%SystemDrive%\$GetCurrent"),
+                },
+                CleanupRisk.Moderate, requiresAdmin: true, defaultSelected: false);
 
             yield return new RecycleBinCleaner();
             yield return new ComponentStoreCleaner();
@@ -157,11 +199,45 @@ namespace OtimizaPC.Cleaning
                 new[] { new FileTarget(@"%LocalAppData%\Spotify\Data") },
                 new[] { "Spotify" });
 
+            yield return new AppCacheCleaner("vscode", "Visual Studio Code", "Cache de páginas e extensões do Visual Studio Code.", CleanupGroups.Apps,
+                new[]
+                {
+                    new FileTarget(@"%AppData%\Code\Cache"),
+                    new FileTarget(@"%AppData%\Code\CachedData"),
+                    new FileTarget(@"%AppData%\Code\Code Cache"),
+                    new FileTarget(@"%AppData%\Code\GPUCache"),
+                }, new[] { "Code" });
+
+            yield return new AppCacheCleaner("slack", "Slack", "Cache de páginas e mídia do Slack.", CleanupGroups.Apps,
+                new[]
+                {
+                    new FileTarget(@"%AppData%\Slack\Cache"),
+                    new FileTarget(@"%AppData%\Slack\Code Cache"),
+                    new FileTarget(@"%AppData%\Slack\GPUCache"),
+                }, new[] { "slack" });
+
+            yield return new AppCacheCleaner("steam", "Steam", "Cache HTML do Steam.", CleanupGroups.Apps,
+                new[] { new FileTarget(@"%ProgramFiles(x86)%\Steam\htmlcache") }, new[] { "steam" });
+
+            yield return new AppCacheCleaner("epic-games", "Epic Games Launcher", "Cache web do Epic Games Launcher.", CleanupGroups.Apps,
+                new[] { new FileTarget(@"%LocalAppData%\EpicGamesLauncher\Saved\webcache") }, new[] { "EpicGamesLauncher" });
+
             const string shaderNote = "Shaders de jogos já compilados. Na primeira partida depois da limpeza, o jogo pode engasgar enquanto recompila.";
 
             yield return new FileCleaner("directx-shaders", "Cache de shaders do DirectX", shaderNote, CleanupGroups.Apps,
                 new[] { new FileTarget(@"%LocalAppData%\D3DSCache") },
                 CleanupRisk.Moderate, defaultSelected: false);
+
+            // ---------- Privacidade ----------
+            yield return new FileCleaner("recent-documents", "Documentos recentes",
+                "Atalhos e listas de arquivos recentes do Explorador de Arquivos.",
+                CleanupGroups.Privacy,
+                new[]
+                {
+                    new FileTarget(@"%AppData%\Microsoft\Windows\Recent", "*.lnk", recursive: false),
+                    new FileTarget(@"%AppData%\Microsoft\Windows\Recent\AutomaticDestinations"),
+                    new FileTarget(@"%AppData%\Microsoft\Windows\Recent\CustomDestinations"),
+                }, CleanupRisk.Moderate, defaultSelected: false);
 
             yield return new FileCleaner("nvidia-shaders", "Cache de shaders NVIDIA", shaderNote, CleanupGroups.Apps,
                 new[]

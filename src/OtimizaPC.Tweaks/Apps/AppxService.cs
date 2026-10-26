@@ -30,6 +30,8 @@ namespace OtimizaPC.Tweaks.Apps
 
         [DataMember] public string InstallLocation { get; set; }
 
+        [DataMember] public string LogoPath { get; set; }
+
         [DataMember] public DateTime RemovedAt { get; set; }
     }
 
@@ -57,8 +59,31 @@ namespace OtimizaPC.Tweaks.Apps
 
             var packages = ParsePackages(result.Output);
             foreach (var package in packages)
+            {
                 package.ManifestDisplayName = ReadManifestDisplayName(package);
+                package.LogoPath = ReadManifestLogo(package);
+            }
             return packages;
+        }
+
+        private static string ReadManifestLogo(AppPackage package)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(package.InstallLocation)) return null;
+                var manifest = Path.Combine(package.InstallLocation, "AppxManifest.xml");
+                if (!File.Exists(manifest)) return null;
+                var doc = System.Xml.Linq.XDocument.Load(manifest);
+                var visual = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "VisualElements");
+                var logo = visual?.Attributes().FirstOrDefault(a => a.Name.LocalName == "Square44x44Logo")?.Value;
+                if (string.IsNullOrWhiteSpace(logo)) return null;
+                var relative = logo.Replace('/', Path.DirectorySeparatorChar);
+                var baseName = Path.Combine(Path.GetDirectoryName(relative) ?? string.Empty, Path.GetFileNameWithoutExtension(relative));
+                var ext = Path.GetExtension(relative);
+                var candidates = new[] { relative, baseName + ".scale-200" + ext, baseName + ".targetsize-48" + ext };
+                return candidates.Select(p => Path.Combine(package.InstallLocation, p)).FirstOrDefault(File.Exists);
+            }
+            catch (Exception ex) { Log.Warn($"Não foi possível ler o logo de {package.Name}: {ex.Message}"); return null; }
         }
 
         /// <summary>Lê o DisplayName do AppxManifest.xml, resolvendo nomes traduzidos (ms-resource:).</summary>
@@ -138,6 +163,7 @@ namespace OtimizaPC.Tweaks.Apps
                 DisplayName = displayName,
                 PackageFamilyName = package.PackageFamilyName,
                 InstallLocation = package.InstallLocation,
+                LogoPath = package.LogoPath,
                 RemovedAt = DateTime.Now,
             });
             SaveRemoved(removed);

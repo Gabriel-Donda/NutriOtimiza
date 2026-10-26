@@ -42,12 +42,26 @@ namespace OtimizaPC.Repair.Tools
                 SummarizeSfc)
             { Duration = "5 a 20 minutos" },
 
+            new CommandTool("sfc-verifyonly", "Verificar arquivos do sistema (somente leitura)",
+                "Verifica a integridade dos arquivos do Windows sem substituir nada.",
+                RepairGroups.Windows,
+                new[] { new CommandStep("sfc.exe", "/verifyonly") },
+                SummarizeSfc)
+            { Duration = "5 a 20 minutos" },
+
             new CommandTool("dism-check", "Verificar imagem do Windows (DISM, rápido)",
                 "Consulta se o repositório de componentes do Windows está marcado como corrompido. Não altera nada.",
                 RepairGroups.Windows,
                 new[] { new CommandStep("dism.exe", "/Online /Cleanup-Image /CheckHealth") },
                 SummarizeDism)
             { Duration = "menos de 1 minuto" },
+
+            new CommandTool("dism-scan", "Verificar imagem do Windows (DISM)",
+                "Examina o repositório de componentes em busca de corrupção, sem reparar.",
+                RepairGroups.Windows,
+                new[] { new CommandStep("dism.exe", "/Online /Cleanup-Image /ScanHealth") },
+                SummarizeDism)
+            { Duration = "5 a 15 minutos" },
 
             new CommandTool("dism-restore", "Reparar imagem do Windows (DISM)",
                 "Baixa do Windows Update e substitui componentes corrompidos. Rode antes do SFC quando ele não conseguir corrigir. Precisa de internet.",
@@ -72,6 +86,12 @@ namespace OtimizaPC.Repair.Tools
                 (lines, ok) => ok ? "Reparo agendado. Reinicie o computador para executar (pode levar bastante tempo)." : null)
             { Duration = "instantâneo (o reparo roda ao reiniciar)", RequiresRestart = true, NeedsConfirmation = true },
 
+            new CommandTool("defrag-optimize", "Otimizar o disco do sistema",
+                "Otimiza a unidade do sistema usando o método adequado ao tipo de armazenamento.",
+                RepairGroups.Disk,
+                new[] { new CommandStep("defrag.exe", "%SystemDrive% /O") })
+            { Duration = "5 a 30 minutos" },
+
             new CommandTool("dns-flush", "Limpar cache de DNS",
                 "Resolve sites que não abrem depois de mudanças de rede ou DNS.",
                 RepairGroups.Network,
@@ -84,7 +104,7 @@ namespace OtimizaPC.Repair.Tools
                 new[]
                 {
                     new CommandStep("ipconfig.exe", "/release"),
-                    new CommandStep("ipconfig.exe", "/renew"),
+                    new CommandStep("ipconfig.exe", "/renew") { SuccessCodes = new[] { 0, 1 } },
                 })
             { Duration = "menos de 1 minuto", NeedsConfirmation = true },
 
@@ -99,6 +119,12 @@ namespace OtimizaPC.Repair.Tools
                 },
                 (lines, ok) => "Redefinido. Reinicie o computador para concluir.")
             { Duration = "menos de 1 minuto", RequiresRestart = true, NeedsConfirmation = true },
+
+            new CommandTool("store-reset", "Redefinir cache da Microsoft Store",
+                "Limpa o cache da Microsoft Store quando aplicativos não baixam ou não abrem.",
+                RepairGroups.Windows,
+                new[] { new CommandStep("wsreset.exe", string.Empty) })
+            { Duration = "1 a 5 minutos", RequiresAdmin = false },
         };
 
         public static IReadOnlyList<WindowsShortcut> Shortcuts() => new[]

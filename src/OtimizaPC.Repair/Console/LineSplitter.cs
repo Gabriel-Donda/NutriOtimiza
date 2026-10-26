@@ -5,11 +5,12 @@ namespace OtimizaPC.Repair.Console
 {
     public sealed class OutputLine
     {
-        public OutputLine(string text, bool isProgress, bool isError = false)
+        public OutputLine(string text, bool isProgress, bool isError = false, int? progressPercent = null)
         {
             Text = text;
             IsProgress = isProgress;
             IsError = isError;
+            ProgressPercent = progressPercent;
         }
 
         public string Text { get; }
@@ -18,6 +19,9 @@ namespace OtimizaPC.Repair.Console
         public bool IsProgress { get; }
 
         public bool IsError { get; }
+
+        /// <summary>Percentual extraído da saída da ferramenta, quando ela fornece um.</summary>
+        public int? ProgressPercent { get; }
     }
 
     /// <summary>

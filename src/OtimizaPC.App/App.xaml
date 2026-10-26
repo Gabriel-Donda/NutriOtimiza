@@ -26,6 +26,7 @@
 
             <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
             <conv:NullToCollapsedConverter x:Key="NullToCollapsed" />
+            <conv:NullToVisibleConverter x:Key="NullToVisible" />
             <conv:InverseBoolConverter x:Key="InverseBool" />
             <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
             <conv:ZeroToVisibleConverter x:Key="ZeroToVisible" />

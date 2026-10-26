@@ -24,6 +24,9 @@ namespace OtimizaPC.Tweaks.Apps
 
         [DataMember] public string InstallLocation { get; set; }
 
+        /// <summary>Caminho do logo definido pelo manifesto Appx.</summary>
+        public string LogoPath { get; set; }
+
         /// <summary>Nome exibido lido do manifesto do pacote (preenchido pelo AppxService).</summary>
         public string ManifestDisplayName { get; set; }
 

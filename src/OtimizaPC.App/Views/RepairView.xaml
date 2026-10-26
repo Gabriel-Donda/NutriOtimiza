@@ -139,6 +139,14 @@
                                     Text="{Binding ConsoleTitle}"
                                     TextTrimming="CharacterEllipsis" />
                             </DockPanel>
+                            <DockPanel Margin="0,8,0,0" DockPanel.Dock="Top">
+                                <TextBlock
+                                    Margin="8,0,0,0"
+                                    DockPanel.Dock="Right"
+                                    FontWeight="SemiBold"
+                                    Text="{Binding ProgressText}" />
+                                <ProgressBar Height="14" Maximum="100" Value="{Binding Progress}" />
+                            </DockPanel>
 
                             <Border
                                 Margin="0,8,0,0"

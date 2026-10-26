@@ -80,6 +80,23 @@ namespace OtimizaPC.Tests
             Assert.Equal(new[] { ("a", false), ("b", false) }, Split("a\nb"));
         }
 
+        [Theory]
+        [InlineData("Verification 45% complete", 45)]
+        [InlineData("[===== 50.0% =====]", 50)]
+        [InlineData("45 percent complete", 45)]
+        [InlineData("Concluído: 75%", 75)]
+        public void Parser_ExtraiPercentuaisDasFerramentas(string line, int expected)
+        {
+            Assert.True(ProgressParser.TryParse(line, out var actual));
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void Parser_IgnoraLinhaSemPercentual()
+        {
+            Assert.False(ProgressParser.TryParse("Verificando arquivos", out _));
+        }
+
         [Fact]
         public async Task Processo_TransmiteLinhasECodigoDeSaida()
         {

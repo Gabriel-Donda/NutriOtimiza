@@ -64,6 +64,10 @@ namespace OtimizaPC.App.ViewModels
 
         public long SelectedBytes => IsSelected && !IsBlocked && Scan != null && State == CleanupItemState.Scanned ? Scan.Bytes : 0;
 
+        public long ProgressWeightBytes => Scan == null || !Scan.SizeKnown
+            ? 100L * 1024 * 1024
+            : Math.Max(Scan.Bytes, 256L * 1024);
+
         public void ApplyScan(CleanupScan scan)
         {
             Scan = scan;
@@ -149,6 +153,9 @@ namespace OtimizaPC.App.ViewModels
         private double _progress;
 
         [ObservableProperty]
+        private string _progressText = "0 de 0 itens";
+
+        [ObservableProperty]
         private string _headline = "Analise o computador para ver quanto espaço pode ser liberado";
 
         [ObservableProperty]
@@ -180,7 +187,7 @@ namespace OtimizaPC.App.ViewModels
 
         private void LoadCatalog()
         {
-            var order = new[] { CleanupGroups.Windows, CleanupGroups.Browsers, CleanupGroups.Apps };
+            var order = new[] { CleanupGroups.Windows, CleanupGroups.Browsers, CleanupGroups.Apps, CleanupGroups.Privacy };
             foreach (var group in CleanupCatalog.Create().GroupBy(c => c.Group).OrderBy(g => Array.IndexOf(order, g.Key)))
             {
                 var items = group.Select(c => new CleanupItemViewModel(c)).ToList();
@@ -248,12 +255,15 @@ namespace OtimizaPC.App.ViewModels
                         {
                             gate.Release();
                             Progress = ++done * 100.0 / items.Count;
+                            ProgressText = $"{done} de {items.Count} itens";
                         }
                     });
                     await Task.WhenAll(tasks);
                 }
 
                 HasScanned = true;
+                Progress = 100;
+                ProgressText = $"{items.Count} de {items.Count} itens";
                 var total = items.Where(i => i.Scan != null).Sum(i => i.Scan.Bytes);
                 Headline = token.IsCancellationRequested
                     ? "Análise cancelada"
@@ -300,6 +310,10 @@ namespace OtimizaPC.App.ViewModels
             var token = _cts.Token;
             long freed = 0;
             var skipped = 0;
+            var totalWeight = selected.Sum(i => i.ProgressWeightBytes);
+            long completedWeight = 0;
+            var completedItems = 0;
+            ProgressText = $"0 de {selected.Count} itens";
 
             try
             {
@@ -324,6 +338,7 @@ namespace OtimizaPC.App.ViewModels
                         item.ApplyResult(result);
                         freed += result.FreedBytes;
                         skipped += result.Skipped;
+                        completedWeight += item.ProgressWeightBytes;
                         Log.Info($"Limpeza '{item.Cleaner.Id}': {Format.Bytes(result.FreedBytes)} liberados, {result.Deleted} removidos, {result.Skipped} mantidos");
                     }
                     catch (OperationCanceledException)
@@ -335,8 +350,13 @@ namespace OtimizaPC.App.ViewModels
                         Log.Error($"Falha ao limpar '{item.Name}'", ex);
                         item.ApplyError("Erro: " + ex.Message);
                     }
-                    Progress = (i + 1) * 100.0 / selected.Count;
+                    completedItems++;
+                    Progress = totalWeight == 0 ? completedItems * 100.0 / selected.Count : completedWeight * 100.0 / totalWeight;
+                    ProgressText = $"{completedItems} de {selected.Count} itens";
                 }
+
+                Progress = 100;
+                ProgressText = $"{selected.Count} de {selected.Count} itens";
 
                 Headline = $"{Format.Bytes(freed)} liberados";
                 StatusMessage = skipped > 0

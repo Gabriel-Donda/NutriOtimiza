@@ -51,8 +51,46 @@ namespace OtimizaPC.Tweaks
             fastStartup.ClientOnly = true;
             yield return fastStartup;
 
+            yield return new RegistryTweak("faster-app-close", "Encerrar programas travados mais rápido",
+                "Ao desligar ou sair da conta, o Windows espera menos (2 s em vez de 5 s) por programas que não respondem e os fecha sozinho.",
+                TweakCategories.Performance)
+            {
+                Restart = RestartRequirement.Logoff,
+                Changes =
+                {
+                    String(HKCU, @"Control Panel\Desktop", "AutoEndTasks", "1", "0"),
+                    String(HKCU, @"Control Panel\Desktop", "HungAppTimeout", "2000", "5000"),
+                    String(HKCU, @"Control Panel\Desktop", "WaitToKillAppTimeout", "2000", "5000"),
+                },
+            };
+
+            yield return new RegistryTweak("faster-service-stop", "Desligar mais rápido (tempo dos serviços)",
+                "Reduz de 5 s para 2 s a espera por serviços que demoram a parar no desligamento. Um serviço lento pode ser interrompido antes de salvar seus dados.",
+                TweakCategories.Performance)
+            {
+                Risk = TweakRisk.Moderate,
+                Restart = RestartRequirement.Reboot,
+                Changes = { String(HKLM, @"SYSTEM\CurrentControlSet\Control", "WaitToKillServiceTimeout", "2000", "5000") },
+            };
+
+            yield return new RegistryTweak("menu-delay", "Menus mais rápidos",
+                "Remove o atraso de 400 ms para abrir submenus. A interface parece mais ágil.",
+                TweakCategories.Performance)
+            {
+                Restart = RestartRequirement.Logoff,
+                Changes = { String(HKCU, @"Control Panel\Desktop", "MenuShowDelay", "0", "400") },
+            };
+
+            yield return new RegistryTweak("bsod-no-reboot", "Mostrar a tela azul sem reiniciar sozinho",
+                "Em vez de reiniciar na hora, o PC fica parado na tela azul para você anotar o código do erro. Útil para diagnosticar travamentos.",
+                TweakCategories.Performance)
+            {
+                Restart = RestartRequirement.Reboot,
+                Changes = { Dword(HKLM, @"SYSTEM\CurrentControlSet\Control\CrashControl", "AutoReboot", 0, 1) },
+            };
+
             // ---------- Privacidade ----------
-            var telemetry = Reg("telemetry-minimum", "Reduzir telemetria ao mínimo",
+            var telemetry =Reg("telemetry-minimum", "Reduzir telemetria ao mínimo",
                 "Envia à Microsoft apenas os dados de diagnóstico obrigatórios para sua edição (no Home e Pro, o nível \"Obrigatório\").",
                 TweakCategories.Privacy,
                 Dword(HKLM, @"SOFTWARE\Policies\Microsoft\Windows\DataCollection", "AllowTelemetry", 0));
@@ -117,6 +155,38 @@ namespace OtimizaPC.Tweaks
             copilot.Restart = RestartRequirement.Explorer;
             yield return copilot;
 
+            var trackProgs = Reg("track-launched-apps", "Não rastrear os programas que você abre",
+                "O Windows deixa de contar quais programas você mais usa (para sugestões no Iniciar e estatísticas).",
+                TweakCategories.Privacy,
+                Dword(HKCU, ExplorerAdvanced, "Start_TrackProgs", 0, 1));
+            trackProgs.Recommended = true;
+            trackProgs.MinBuild = OsInfo.Windows10;
+            yield return trackProgs;
+
+            var recentFiles = Reg("recent-files-off", "Não mostrar arquivos recentes no Explorador",
+                "O Acesso Rápido deixa de listar os últimos arquivos e as pastas mais usadas.",
+                TweakCategories.Privacy,
+                Dword(HKCU, @"Software\Microsoft\Windows\CurrentVersion\Explorer", "ShowRecent", 0, 1),
+                Dword(HKCU, @"Software\Microsoft\Windows\CurrentVersion\Explorer", "ShowFrequent", 0, 1));
+            recentFiles.MinBuild = OsInfo.Windows10;
+            recentFiles.Restart = RestartRequirement.Explorer;
+            yield return recentFiles;
+
+            var langOptOut = Reg("language-list-optout", "Não compartilhar a lista de idiomas com sites",
+                "Impede que sites leiam os idiomas instalados no Windows para personalizar conteúdo.",
+                TweakCategories.Privacy,
+                Dword(HKCU, @"Control Panel\International\User Profile", "HttpAcceptLanguageOptOut", 1, 0));
+            langOptOut.MinBuild = OsInfo.Windows10;
+            yield return langOptOut;
+
+            yield return new RegistryTweak("wer-off", "Desativar envio de relatórios de erro",
+                "O Windows para de oferecer e enviar relatórios de falha à Microsoft. Os eventos continuam nos logs da aba Reparo.",
+                TweakCategories.Privacy)
+            {
+                Risk = TweakRisk.Moderate,
+                Changes = { Dword(HKLM, @"SOFTWARE\Microsoft\Windows\Windows Error Reporting", "Disabled", 1, 0) },
+            };
+
             // ---------- Anúncios e sugestões ----------
             var suggestions = Reg("windows-suggestions", "Desativar dicas, sugestões e anúncios",
                 "Remove sugestões de apps no Iniciar, dicas do Windows e propagandas nas Configurações.",
@@ -177,6 +247,15 @@ namespace OtimizaPC.Tweaks
             news.Restart = RestartRequirement.Explorer;
             yield return news;
 
+            var syncNotifications = Reg("sync-provider-ads", "Remover propaganda do OneDrive no Explorador",
+                "Esconde as notificações e ofertas de provedores de nuvem (OneDrive, Microsoft 365) que aparecem no Explorador.",
+                TweakCategories.Ads,
+                Dword(HKCU, ExplorerAdvanced, "ShowSyncProviderNotifications", 0, 1));
+            syncNotifications.Recommended = true;
+            syncNotifications.MinBuild = OsInfo.Windows10;
+            syncNotifications.Restart = RestartRequirement.Explorer;
+            yield return syncNotifications;
+
             // ---------- Explorador e interface ----------
             var extensions = Reg("show-extensions", "Mostrar extensões de arquivos",
                 "Exibe .exe, .pdf, .docx etc. Ajuda a identificar arquivos maliciosos disfarçados (ex.: foto.jpg.exe).",
@@ -229,6 +308,42 @@ namespace OtimizaPC.Tweaks
                     String(HKCU, @"Control Panel\Desktop\WindowMetrics", "MinAnimate", "0", "1"),
                     Dword(HKCU, ExplorerAdvanced, "TaskbarAnimations", 0, 1),
                 },
+            };
+
+            yield return new RegistryTweak("task-view-off", "Esconder o botão Visão de Tarefas",
+                "Remove da barra de tarefas o botão de áreas de trabalho virtuais. O atalho Win+Tab continua funcionando.",
+                TweakCategories.Interface)
+            {
+                MinBuild = OsInfo.Windows10,
+                Restart = RestartRequirement.Explorer,
+                Changes = { Dword(HKCU, ExplorerAdvanced, "ShowTaskViewButton", 0, 1) },
+            };
+
+            yield return new RegistryTweak("taskbar-chat-off", "Esconder o botão de Chat (Teams)",
+                "Remove o ícone de bate-papo da barra de tarefas do Windows 11.",
+                TweakCategories.Interface)
+            {
+                MinBuild = OsInfo.Windows11,
+                Restart = RestartRequirement.Explorer,
+                Changes = { Dword(HKCU, ExplorerAdvanced, "TaskbarMn", 0, 1) },
+            };
+
+            yield return new RegistryTweak("taskbar-left", "Barra de tarefas alinhada à esquerda",
+                "Volta o botão Iniciar e os ícones para o canto esquerdo, como no Windows 10.",
+                TweakCategories.Interface)
+            {
+                MinBuild = OsInfo.Windows11,
+                Restart = RestartRequirement.Explorer,
+                Changes = { Dword(HKCU, ExplorerAdvanced, "TaskbarAl", 0, 1) },
+            };
+
+            yield return new RegistryTweak("explorer-compact", "Explorador compacto",
+                "Reduz o espaço entre os itens das listas do Explorador, mostrando mais arquivos de uma vez.",
+                TweakCategories.Interface)
+            {
+                MinBuild = OsInfo.Windows11,
+                Restart = RestartRequirement.Explorer,
+                Changes = { Dword(HKCU, ExplorerAdvanced, "UseCompactMode", 1, 0) },
             };
 
             // ---------- Jogos ----------
@@ -284,6 +399,19 @@ namespace OtimizaPC.Tweaks
                 },
             };
 
+            yield return new RegistryTweak("game-bar-off", "Desativar a Xbox Game Bar",
+                "Impede que o painel da Game Bar abra com o botão do controle ou Win+G e consuma recursos durante o jogo.",
+                TweakCategories.Gaming)
+            {
+                ClientOnly = true,
+                MinBuild = OsInfo.Windows10,
+                Changes =
+                {
+                    Dword(HKCU, @"Software\Microsoft\GameBar", "UseNexusForGameBarEnabled", 0, 1),
+                    Dword(HKCU, @"Software\Microsoft\GameBar", "ShowStartupPanel", 0, 1),
+                },
+            };
+
             yield return new RegistryTweak("mouse-precision-off", "Desativar aceleração do mouse",
                 "Desliga \"Aumentar precisão do ponteiro\": o cursor se move sempre na mesma proporção da mão. Preferido em jogos de tiro.",
                 TweakCategories.Gaming)
@@ -336,6 +464,19 @@ namespace OtimizaPC.Tweaks
                 TweakCategories.Services, "WSearch", ServiceTweak.Disabled, ServiceTweak.Automatic)
             { Risk = TweakRisk.Moderate };
 
+            yield return new ServiceTweak("maps-service-off", "Desativar serviço de mapas baixados",
+                "Gerenciador de mapas offline do app Mapas. Desnecessário se você não usa mapas offline.",
+                TweakCategories.Services, "MapsBroker", ServiceTweak.Disabled, ServiceTweak.Automatic)
+            { ClientOnly = true };
+
+            yield return new ServiceTweak("wmp-sharing-off", "Desativar compartilhamento do Media Player",
+                "Serviço que compartilha músicas e vídeos do Windows Media Player com outros aparelhos da rede.",
+                TweakCategories.Services, "WMPNetworkSvc", ServiceTweak.Disabled, ServiceTweak.Manual);
+
+            yield return new ServiceTweak("fax-off", "Desativar serviço de Fax",
+                "Só é útil se você ainda envia fax pelo computador.",
+                TweakCategories.Services, "Fax", ServiceTweak.Disabled, ServiceTweak.Manual);
+
             yield return new ServiceTweak("print-spooler-off", "Desativar spooler de impressão",
                 "Só se você não usa impressora nem \"Imprimir em PDF\". Fecha brechas de segurança conhecidas do spooler.",
                 TweakCategories.Services, "Spooler", ServiceTweak.Disabled, ServiceTweak.Automatic)
@@ -347,6 +488,26 @@ namespace OtimizaPC.Tweaks
                 TweakCategories.Security)
             {
                 Changes = { Dword(HKLM, @"SYSTEM\CurrentControlSet\Control\Remote Assistance", "fAllowToGetHelp", 0, 1) },
+            };
+
+            yield return new RegistryTweak("autorun-off", "Desativar execução automática de pendrives",
+                "Impede que programas em pendrives e discos externos rodem sozinhos ao conectar. Bloqueia uma via comum de vírus.",
+                TweakCategories.Security)
+            {
+                Recommended = true,
+                Changes =
+                {
+                    Dword(HKLM, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoDriveTypeAutoRun", 255),
+                    Dword(HKCU, @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers", "DisableAutoplay", 1, 0),
+                },
+            };
+
+            yield return new RegistryTweak("llmnr-off", "Desativar LLMNR",
+                "Protocolo de resolução de nomes que atacantes na rede local usam para roubar credenciais. Redes sem DNS interno podem deixar de achar computadores pelo nome.",
+                TweakCategories.Security)
+            {
+                Risk = TweakRisk.Moderate,
+                Changes = { Dword(HKLM, @"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient", "EnableMulticast", 0) },
             };
 
             yield return new RegistryTweak("smb1-off", "Desativar compartilhamento SMBv1",

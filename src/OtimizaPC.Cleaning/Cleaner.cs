@@ -17,6 +17,7 @@ namespace OtimizaPC.Cleaning
         public const string Windows = "Windows";
         public const string Browsers = "Navegadores";
         public const string Apps = "Aplicativos e jogos";
+        public const string Privacy = "Privacidade";
     }
 
     /// <summary>Resultado da análise de um item (o que seria removido).</summary>

@@ -77,13 +77,17 @@
                                             Content="Reinstalar"
                                             DockPanel.Dock="Right"
                                             Icon="{ui:SymbolIcon ArrowUndo24}" />
-                                        <StackPanel>
-                                            <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" />
+                                        <Grid>
+                                            <Image Width="32" Height="32" Margin="0,0,10,0" VerticalAlignment="Center" Source="{Binding Icon}" Stretch="Uniform" />
+                                            <ui:SymbolIcon Width="32" Height="32" Margin="0,0,10,0" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="22" Symbol="AppStore24" Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}" />
+                                            <StackPanel Margin="42,0,0,0">
+                                                <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" />
                                             <TextBlock
                                                 FontSize="12"
                                                 Style="{StaticResource SecondaryText}"
                                                 Text="{Binding Detail}" />
-                                        </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
                                     </DockPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -118,7 +122,9 @@
                                                         Margin="0,0,8,0"
                                                         VerticalAlignment="Top"
                                                         IsChecked="{Binding IsSelected}" />
-                                                    <StackPanel Grid.Column="1">
+                                            <Image Grid.Column="1" Width="32" Height="32" Margin="0,0,8,0" HorizontalAlignment="Left" VerticalAlignment="Top" Source="{Binding Icon}" Stretch="Uniform" />
+                                            <ui:SymbolIcon Grid.Column="1" Width="32" Height="32" Margin="0,0,8,0" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="22" Symbol="AppStore24" Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}" />
+                                            <StackPanel Grid.Column="1" Margin="40,0,0,0">
                                                         <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" />
                                                         <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Description}" />
                                                         <TextBlock
@@ -131,7 +137,7 @@
                                                             Text="{Binding StatusText}"
                                                             TextWrapping="Wrap"
                                                             Visibility="{Binding StatusText, Converter={StaticResource NullToCollapsed}}" />
-                                                    </StackPanel>
+                                            </StackPanel>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
