@@ -36,6 +36,9 @@ namespace OtimizaPC.Core.Settings
         /// <summary>Identificadores dos componentes de sensores que o usuário recolheu.</summary>
         [DataMember] public List<string> CollapsedSensorGroups { get; set; } = new List<string>();
 
+        /// <summary>Identificadores das seções de hardware que o usuário recolheu.</summary>
+        [DataMember] public List<string> CollapsedHardwareSections { get; set; } = new List<string>();
+
         // O DataContractJsonSerializer não executa inicializadores de propriedade: valores padrão para campos ausentes
         [OnDeserializing]
         private void OnDeserializing(StreamingContext context)
@@ -45,6 +48,7 @@ namespace OtimizaPC.Core.Settings
             AutoInstallUpdates = true;
             UpdateRepository = string.Empty;
             CollapsedSensorGroups = new List<string>();
+            CollapsedHardwareSections = new List<string>();
         }
     }
 
@@ -67,6 +71,7 @@ namespace OtimizaPC.Core.Settings
                 {
                     var settings = (AppSettings)new DataContractJsonSerializer(typeof(AppSettings)).ReadObject(stream) ?? new AppSettings();
                     if (settings.CollapsedSensorGroups == null) settings.CollapsedSensorGroups = new List<string>();
+                    if (settings.CollapsedHardwareSections == null) settings.CollapsedHardwareSections = new List<string>();
                     return settings;
                 }
             }

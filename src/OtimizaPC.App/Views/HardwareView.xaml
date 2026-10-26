@@ -7,8 +7,18 @@
     <DockPanel Margin="28,24,28,0">
         <!-- Cabeçalho com ações -->
         <StackPanel DockPanel.Dock="Top">
-            <DockPanel>
+            <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <ui:Button
+                        Margin="0,0,8,0"
+                        Appearance="Secondary"
+                        Command="{Binding CollapseAllCommand}"
+                        Content="Recolher tudo" />
+                    <ui:Button
+                        Margin="0,0,8,0"
+                        Appearance="Secondary"
+                        Command="{Binding ExpandAllCommand}"
+                        Content="Expandir tudo" />
                     <ui:Button
                         Margin="0,0,8,0"
                         Appearance="Secondary"
@@ -50,18 +60,45 @@
                             Padding="20,16"
                             HorizontalContentAlignment="Stretch">
                             <StackPanel>
-                                <StackPanel Margin="0,0,0,6" Orientation="Horizontal">
-                                    <ui:SymbolIcon
-                                        FontSize="22"
-                                        Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
-                                        Symbol="{Binding Icon, Converter={StaticResource StringToSymbol}}" />
-                                    <TextBlock
-                                        Margin="10,0,0,0"
-                                        VerticalAlignment="Center"
-                                        Style="{StaticResource SectionTitle}"
-                                        Text="{Binding Title}" />
-                                </StackPanel>
-                                <ItemsControl ItemsSource="{Binding Groups}">
+                                <Button
+                                    Padding="4"
+                                    HorizontalContentAlignment="Stretch"
+                                    Background="Transparent"
+                                    BorderBrush="Transparent"
+                                    BorderThickness="1"
+                                    Cursor="Hand"
+                                    FocusVisualStyle="{StaticResource AppFocusVisualStyle}"
+                                    Command="{Binding DataContext.ToggleSectionCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                    CommandParameter="{Binding}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <ui:SymbolIcon
+                                            FontSize="22"
+                                            Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                                            Symbol="{Binding Icon, Converter={StaticResource StringToSymbol}}" />
+                                        <StackPanel Grid.Column="1" Margin="10,0,10,0">
+                                            <TextBlock Style="{StaticResource SectionTitle}" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <ui:SymbolIcon Grid.Column="2" FontSize="20" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Symbol="ChevronDown24">
+                                            <ui:SymbolIcon.Style>
+                                                <Style TargetType="ui:SymbolIcon">
+                                                    <Setter Property="RenderTransform"><Setter.Value><RotateTransform Angle="0" /></Setter.Value></Setter>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                            <Setter Property="RenderTransform"><Setter.Value><RotateTransform Angle="180" /></Setter.Value></Setter>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ui:SymbolIcon.Style>
+                                        </ui:SymbolIcon>
+                                    </Grid>
+                                </Button>
+                                <ItemsControl ItemsSource="{Binding Groups}" Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel Margin="0,6,0,4">

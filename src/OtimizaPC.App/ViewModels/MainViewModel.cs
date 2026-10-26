@@ -65,7 +65,7 @@ namespace OtimizaPC.App.ViewModels
             NavItems = new ObservableCollection<NavItem>
             {
                 new NavItem("dashboard", "Painel", SymbolRegular.Home24, new DashboardViewModel(sensors, hardwareInfo, health, sensorSetup, NavigateTo)),
-                new NavItem("hardware", "Hardware", SymbolRegular.DeveloperBoard24, new HardwareViewModel(hardwareInfo)),
+                new NavItem("hardware", "Hardware", SymbolRegular.DeveloperBoard24, new HardwareViewModel(hardwareInfo, settingsStore)),
                 new NavItem("sensors", "Sensores", SymbolRegular.Temperature24, new SensorsViewModel(sensors, settingsStore)),
                 new NavItem("cleanup", "Limpeza", SymbolRegular.Broom24, new CleanupViewModel(dialogs)),
                 new NavItem("disk", "Espaço em disco", SymbolRegular.DataPie24, new DiskAnalyzerViewModel()),
