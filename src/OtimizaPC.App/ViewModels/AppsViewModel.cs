@@ -105,6 +105,8 @@ namespace OtimizaPC.App.ViewModels
 
         public bool HasRemoved => Removed.Count > 0;
 
+        public bool HasItems => AllItems.Any();
+
         public bool CanRemoveForNewUsers => AppInfo.IsAdministrator;
 
         private IEnumerable<AppItemViewModel> AllItems => Groups.SelectMany(g => g.Items);
@@ -175,6 +177,7 @@ namespace OtimizaPC.App.ViewModels
             AddGroup("Outros apps da Store", "Instalados por você ou pelo fabricante do PC. Confira antes de remover.",
                 items.Where(x => x.Entry == null).Select(x => x.Item));
             OnItemChanged(null, new PropertyChangedEventArgs(nameof(AppItemViewModel.IsSelected)));
+            OnPropertyChanged(nameof(HasItems));
         }
 
         private void AddGroup(string name, string hint, IEnumerable<AppItemViewModel> items)
@@ -189,6 +192,7 @@ namespace OtimizaPC.App.ViewModels
             foreach (var app in _service.LoadRemoved().OrderByDescending(a => a.RemovedAt))
                 Removed.Add(new RemovedAppViewModel(app, ReinstallCommand));
             OnPropertyChanged(nameof(HasRemoved));
+            OnPropertyChanged(nameof(HasItems));
         }
 
         private void OnItemChanged(object sender, PropertyChangedEventArgs e)

@@ -96,6 +96,8 @@ namespace OtimizaPC.App.ViewModels
 
         public ObservableCollection<StartupItemViewModel> Items { get; } = new ObservableCollection<StartupItemViewModel>();
 
+        public bool HasItems => Items.Count > 0;
+
         public void OnActivated()
         {
             if (_loaded) return;
@@ -120,6 +122,7 @@ namespace OtimizaPC.App.ViewModels
                 Items.Add(item);
             }
             UpdateSummary();
+            OnPropertyChanged(nameof(HasItems));
             StatusMessage = AppInfo.IsAdministrator ? null : "Sem administrador: itens de \"todos os usuários\" não podem ser alterados.";
         }
 

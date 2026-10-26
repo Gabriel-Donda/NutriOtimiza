@@ -100,6 +100,7 @@
                                             <Grid Margin="0,6" IsEnabled="{Binding IsEnabled}">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="120" />
                                                 </Grid.ColumnDefinitions>
@@ -108,7 +109,21 @@
                                                     Margin="0,0,8,0"
                                                     VerticalAlignment="Top"
                                                     IsChecked="{Binding IsSelected}" />
-                                                <StackPanel Grid.Column="1">
+                                                <Grid Grid.Column="1" Width="32" Height="32" Margin="0,0,10,0" VerticalAlignment="Top">
+                                                    <Image
+                                                        Width="32"
+                                                        Height="32"
+                                                        Source="{Binding Icon}"
+                                                        Stretch="Uniform"
+                                                        Visibility="{Binding Icon, Converter={StaticResource NullToCollapsed}}" />
+                                                    <ui:SymbolIcon
+                                                        Width="32"
+                                                        Height="32"
+                                                        FontSize="22"
+                                                        Symbol="AppStore24"
+                                                        Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}" />
+                                                </Grid>
+                                                <StackPanel Grid.Column="2">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
                                                         <Border
@@ -144,7 +159,7 @@
                                                     </TextBlock>
                                                 </StackPanel>
                                                 <TextBlock
-                                                    Grid.Column="2"
+                                                    Grid.Column="3"
                                                     HorizontalAlignment="Right"
                                                     VerticalAlignment="Top"
                                                     FontSize="15"

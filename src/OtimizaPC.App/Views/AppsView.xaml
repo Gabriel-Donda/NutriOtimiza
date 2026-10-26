@@ -21,9 +21,9 @@
                         Content="{Binding RemoveText}"
                         Icon="{ui:SymbolIcon Delete24}" />
                 </StackPanel>
-                <TextBlock Style="{StaticResource PageTitle}" Text="Apps pré-instalados" />
+                <TextBlock Style="{StaticResource PageTitle}" Text="Apps pré-instalados" TextTrimming="CharacterEllipsis" />
             </DockPanel>
-            <TextBlock Style="{StaticResource PageSubtitle}" Text="Remova propaganda e apps que vieram com o Windows ou com o PC e você não usa." />
+            <TextBlock Style="{StaticResource PageSubtitle}" Text="Remova propaganda e apps que vieram com o Windows ou com o PC e você não usa." TextWrapping="Wrap" />
 
             <DockPanel Margin="0,0,0,8">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
@@ -81,7 +81,7 @@
                                             <Image Width="32" Height="32" Margin="0,0,10,0" VerticalAlignment="Center" Source="{Binding Icon}" Stretch="Uniform" />
                                             <ui:SymbolIcon Width="32" Height="32" Margin="0,0,10,0" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="22" Symbol="AppStore24" Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}" />
                                             <StackPanel Margin="42,0,0,0">
-                                                <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" />
+                                                <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" TextWrapping="Wrap" />
                                             <TextBlock
                                                 FontSize="12"
                                                 Style="{StaticResource SecondaryText}"
@@ -125,7 +125,7 @@
                                             <Image Grid.Column="1" Width="32" Height="32" Margin="0,0,8,0" HorizontalAlignment="Left" VerticalAlignment="Top" Source="{Binding Icon}" Stretch="Uniform" />
                                             <ui:SymbolIcon Grid.Column="1" Width="32" Height="32" Margin="0,0,8,0" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="22" Symbol="AppStore24" Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}" />
                                             <StackPanel Grid.Column="1" Margin="40,0,0,0">
-                                                        <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" />
+                                                        <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" TextWrapping="Wrap" />
                                                         <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Description}" />
                                                         <TextBlock
                                                             FontSize="11"
@@ -147,6 +147,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <ui:Card Margin="0,0,0,12" Padding="24" HorizontalContentAlignment="Stretch" Visibility="{Binding HasItems, Converter={StaticResource InverseBoolToVisibility}}"><StackPanel><TextBlock Style="{StaticResource SectionTitle}" Text="Nenhum app disponível"/><TextBlock Margin="0,6,0,0" Style="{StaticResource SecondaryText}" Text="Não há apps pré-instalados elegíveis para remoção neste momento." TextWrapping="Wrap"/></StackPanel></ui:Card>
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

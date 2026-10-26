@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OtimizaPC.App.Services;
@@ -44,6 +46,7 @@ namespace OtimizaPC.App.ViewModels
             IsEnabled = !cleaner.RequiresAdmin || AppInfo.IsAdministrator;
             IsSelected = cleaner.DefaultSelected && IsEnabled;
             StatusText = IsEnabled ? null : "Requer administrador";
+            Icon = IconService.FromExecutable(ResolveExecutablePath(cleaner.Id));
         }
 
         public Cleaner Cleaner { get; }
@@ -53,6 +56,9 @@ namespace OtimizaPC.App.ViewModels
         public string Description => Cleaner.Description;
 
         public bool IsEnabled { get; }
+
+        /// <summary>Ícone do aplicativo; itens do Windows usam o símbolo genérico quando não há executável.</summary>
+        public BitmapSource Icon { get; }
 
         public bool IsModerate => Cleaner.Risk == CleanupRisk.Moderate;
 
@@ -67,6 +73,103 @@ namespace OtimizaPC.App.ViewModels
         public long ProgressWeightBytes => Scan == null || !Scan.SizeKnown
             ? 100L * 1024 * 1024
             : Math.Max(Scan.Bytes, 256L * 1024);
+
+        private static string ResolveExecutablePath(string id)
+        {
+            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            var programFilesX86 = Environment.GetEnvironmentVariable("ProgramFiles(x86)") ?? programFiles;
+
+            switch (id)
+            {
+                case "chrome":
+                    return FirstExisting(
+                        Path.Combine(local, @"Google\Chrome\Application\chrome.exe"),
+                        Path.Combine(programFiles, @"Google\Chrome\Application\chrome.exe"),
+                        Path.Combine(programFilesX86, @"Google\Chrome\Application\chrome.exe"));
+                case "edge":
+                    return FirstExisting(
+                        Path.Combine(programFilesX86, @"Microsoft\Edge\Application\msedge.exe"),
+                        Path.Combine(programFiles, @"Microsoft\Edge\Application\msedge.exe"),
+                        Path.Combine(local, @"Microsoft\Edge\Application\msedge.exe"));
+                case "brave":
+                    return FirstExisting(
+                        Path.Combine(local, @"BraveSoftware\Brave-Browser\Application\brave.exe"),
+                        Path.Combine(programFiles, @"BraveSoftware\Brave-Browser\Application\brave.exe"),
+                        Path.Combine(programFilesX86, @"BraveSoftware\Brave-Browser\Application\brave.exe"));
+                case "vivaldi":
+                    return FirstExisting(
+                        Path.Combine(local, @"Vivaldi\Application\vivaldi.exe"),
+                        Path.Combine(programFiles, @"Vivaldi\Application\vivaldi.exe"),
+                        Path.Combine(programFilesX86, @"Vivaldi\Application\vivaldi.exe"));
+                case "opera":
+                    return FirstExisting(
+                        Path.Combine(local, @"Programs\Opera\opera.exe"),
+                        Path.Combine(local, @"Programs\Opera GX\opera.exe"),
+                        Path.Combine(programFiles, @"Opera\opera.exe"),
+                        Path.Combine(programFilesX86, @"Opera\opera.exe"));
+                case "firefox":
+                    return FirstExisting(
+                        Path.Combine(programFiles, @"Mozilla Firefox\firefox.exe"),
+                        Path.Combine(programFilesX86, @"Mozilla Firefox\firefox.exe"),
+                        Path.Combine(local, @"Mozilla Firefox\firefox.exe"));
+                case "discord":
+                    return FindVersionedExecutable(Path.Combine(local, "Discord"), "Discord.exe");
+                case "teams-classic":
+                    return FirstExisting(
+                        Path.Combine(roaming, @"Microsoft\Teams\current\Teams.exe"),
+                        Path.Combine(local, @"Microsoft\Teams\current\Teams.exe"),
+                        Path.Combine(programFiles, @"Microsoft Teams\current\ms-teams.exe"),
+                        Path.Combine(programFilesX86, @"Microsoft Teams\current\ms-teams.exe"));
+                case "spotify":
+                    return FirstExisting(
+                        Path.Combine(local, @"Spotify\Spotify.exe"),
+                        Path.Combine(roaming, @"Spotify\Spotify.exe"),
+                        Path.Combine(programFiles, @"Spotify\Spotify.exe"));
+                case "vscode":
+                    return FirstExisting(
+                        Path.Combine(local, @"Programs\Microsoft VS Code\Code.exe"),
+                        Path.Combine(programFiles, @"Microsoft VS Code\Code.exe"),
+                        Path.Combine(programFilesX86, @"Microsoft VS Code\Code.exe"));
+                case "slack":
+                    return FindVersionedExecutable(Path.Combine(local, "slack"), "slack.exe")
+                        ?? FirstExisting(Path.Combine(programFiles, @"Slack\slack.exe"), Path.Combine(programFilesX86, @"Slack\slack.exe"));
+                case "steam":
+                    return FirstExisting(
+                        Path.Combine(programFilesX86, @"Steam\steam.exe"),
+                        Path.Combine(programFiles, @"Steam\steam.exe"));
+                case "epic-games":
+                    return FirstExisting(
+                        Path.Combine(programFilesX86, @"Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe"),
+                        Path.Combine(programFiles, @"Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe"),
+                        Path.Combine(local, @"EpicGamesLauncher\Saved\Config\Windows\EpicGamesLauncher.exe"));
+                default:
+                    return null;
+            }
+        }
+
+        private static string FirstExisting(params string[] paths) => paths.FirstOrDefault(File.Exists);
+
+        private static string FindVersionedExecutable(string root, string executable)
+        {
+            if (!Directory.Exists(root)) return null;
+            try
+            {
+                return Directory.GetDirectories(root, "app-*")
+                    .OrderByDescending(path => path, StringComparer.OrdinalIgnoreCase)
+                    .Select(path => Path.Combine(path, executable))
+                    .FirstOrDefault(File.Exists);
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
 
         public void ApplyScan(CleanupScan scan)
         {
