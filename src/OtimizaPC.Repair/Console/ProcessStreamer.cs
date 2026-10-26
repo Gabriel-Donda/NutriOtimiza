@@ -19,6 +19,7 @@ namespace OtimizaPC.Repair.Console
         internal static async Task<int> RunAsync(string fileName, string arguments, Action<OutputLine> onLine,
             CancellationToken cancellationToken, Action<int> onStarted)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var startInfo = new ProcessStartInfo
             {
                 FileName = fileName,
@@ -29,67 +30,65 @@ namespace OtimizaPC.Repair.Console
                 RedirectStandardError = true,
             };
 
-            using (var process = new Process { StartInfo = startInfo })
+            Process process = null;
+            var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<bool> termination = null;
+            using (cancellationToken.Register(() =>
             {
+                cancelled.TrySetResult(true);
+                if (process != null)
+                    termination = Task.Run(() => KillTree(process, message => onLine?.Invoke(new OutputLine(message, false, true))));
+            }))
+            using (process = new Process { StartInfo = startInfo })
+            {
+                cancellationToken.ThrowIfCancellationRequested();
                 process.Start();
                 onStarted?.Invoke(process.Id);
 
-                var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                Task termination = null;
+                var pumps = Task.WhenAll(
+                    PumpAsync(process.StandardOutput.BaseStream, onLine, isError: false),
+                    PumpAsync(process.StandardError.BaseStream, onLine, isError: true));
 
-                using (cancellationToken.Register(() =>
+                try
                 {
-                    // Encerrar a árvore pode levar alguns segundos: não bloqueia quem pediu o cancelamento (a UI)
-                    termination = Task.Run(() => KillTree(process));
-                    cancelled.TrySetResult(true);
-                }))
-                {
-                    var pumps = Task.WhenAll(
-                        PumpAsync(process.StandardOutput.BaseStream, onLine, isError: false),
-                        PumpAsync(process.StandardError.BaseStream, onLine, isError: true));
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var first = await Task.WhenAny(pumps, cancelled.Task).ConfigureAwait(false);
 
-                    try
+                    if (first == pumps)
                     {
-                        var first = await Task.WhenAny(pumps, cancelled.Task).ConfigureAwait(false);
-
-                        if (first == pumps)
+                        // Saída encerrada: propaga falha de leitura e confirma a saída do processo.
+                        await pumps.ConfigureAwait(false);
+                        if (!process.WaitForExit((int)ExitGrace.TotalMilliseconds))
                         {
-                            // Saída encerrada: propaga falha de leitura, se houver, e confirma a saída do processo
-                            await pumps.ConfigureAwait(false);
-                            if (!process.WaitForExit((int)ExitGrace.TotalMilliseconds))
-                            {
-                                KillTree(process);
-                                if (!process.WaitForExit((int)ExitGrace.TotalMilliseconds))
-                                    throw new InvalidOperationException("O processo não encerrou depois de fechar a saída.");
-                            }
-
-                            Observe(termination);
-                            return process.ExitCode;
+                            if (!KillTree(process, message => onLine?.Invoke(new OutputLine(message, false, true)))
+                                || !process.WaitForExit((int)ExitGrace.TotalMilliseconds))
+                                throw new InvalidOperationException("O processo não encerrou depois de fechar a saída.");
                         }
 
-                        // Cancelado: dá um tempo curto para drenar as últimas linhas e para o taskkill concluir.
-                        // Se um processo neto sobreviver e segurar a saída, não espera indefinidamente.
-                        var drain = termination == null ? pumps : Task.WhenAll(pumps, termination);
-                        await Task.WhenAny(drain, Task.Delay(CancelGrace)).ConfigureAwait(false);
-
-                        // Mesmo quando os pumps não terminam a tempo, as falhas deles precisam ser observadas
-                        Observe(pumps);
                         Observe(termination);
+                        return process.ExitCode;
+                    }
 
-                        if (!process.WaitForExit((int)CancelGrace.TotalMilliseconds)) KillTree(process);
-                        cancellationToken.ThrowIfCancellationRequested();
-                        return process.ExitCode; // inalcançável quando o token está cancelado
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        throw;
-                    }
-                    catch
-                    {
-                        // Falha de leitura ou do consumidor das linhas: não deixa o processo órfão
-                        KillTree(process);
-                        throw;
-                    }
+                    // Cancelado: aguarda a árvore e confirma o encerramento sem deixar órfãos.
+                    var drain = termination == null ? pumps : Task.WhenAll(pumps, termination);
+                    await Task.WhenAny(drain, Task.Delay(CancelGrace)).ConfigureAwait(false);
+                    Observe(pumps);
+                    Observe(termination);
+
+                    if (!process.WaitForExit((int)CancelGrace.TotalMilliseconds))
+                        KillTree(process, message => onLine?.Invoke(new OutputLine(message, false, true)));
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return process.ExitCode; // inalcançável quando o token está cancelado
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    // Falha de leitura ou do consumidor das linhas: não deixa o processo órfão.
+                    KillTree(process, message => onLine?.Invoke(new OutputLine(message, false, true)));
+                    throw;
                 }
             }
         }
@@ -141,23 +140,49 @@ namespace OtimizaPC.Repair.Console
         /// Encerra o processo e todos os filhos (ex.: cmd → ping, dism → dismhost). Process.Kill do .NET Framework
         /// mata só o processo principal, e os filhos continuariam rodando com a saída aberta.
         /// </summary>
-        private static void KillTree(Process process)
+        private static bool KillTree(Process process, Action<string> report)
         {
             try
             {
-                if (process.HasExited) return;
+                if (process == null) return true;
+                try
+                {
+                    if (process.HasExited) return true;
+                }
+                catch (InvalidOperationException)
+                {
+                    // O cancelamento pode chegar antes de Start.
+                    return true;
+                }
                 var taskkill = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "taskkill.exe"), $"/PID {process.Id} /T /F")
                 {
                     UseShellExecute = false,
                     CreateNoWindow = true,
                 };
                 using (var killer = Process.Start(taskkill))
-                    killer?.WaitForExit(5000);
-                if (!process.HasExited) process.Kill();
+                {
+                    if (killer == null || !killer.WaitForExit(5000) || killer.ExitCode != 0)
+                    {
+                        report?.Invoke("Falha ao encerrar a árvore do processo (taskkill).");
+                        return false;
+                    }
+                }
+                if (!process.WaitForExit(5000))
+                {
+                    try { process.Kill(); }
+                    catch (Exception ex) { report?.Invoke("Falha ao forçar o encerramento do processo: " + ex.Message); return false; }
+                    if (!process.WaitForExit(5000))
+                    {
+                        report?.Invoke("O processo continuou ativo após o cancelamento.");
+                        return false;
+                    }
+                }
+                return true;
             }
-            catch
+            catch (Exception ex)
             {
-                // Processo já terminou
+                report?.Invoke("Falha ao confirmar o encerramento do processo: " + ex.Message);
+                return false;
             }
         }
     }

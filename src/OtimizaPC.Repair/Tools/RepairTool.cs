@@ -49,13 +49,31 @@ namespace OtimizaPC.Repair.Tools
 
         public abstract Task<RepairResult> RunAsync(Action<OutputLine> output, CancellationToken cancellationToken);
 
-        protected static string System32(string tool) => Path.Combine(Environment.SystemDirectory, tool);
+        protected static string System32(string tool)
+        {
+            ValidateSystem32ToolName(tool);
+            var systemDirectory = Path.GetFullPath(Environment.SystemDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar);
+            var candidate = Path.GetFullPath(Path.Combine(systemDirectory, tool));
+            if (!candidate.StartsWith(systemDirectory, StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("A ferramenta deve permanecer dentro de System32.", nameof(tool));
+            return candidate;
+        }
+
+        internal static void ValidateSystem32ToolName(string tool)
+        {
+            if (string.IsNullOrWhiteSpace(tool) || Path.IsPathRooted(tool)
+                || tool.IndexOfAny(new[] { '\\', '/' }) >= 0
+                || !string.Equals(Path.GetFileName(tool), tool, StringComparison.Ordinal)
+                || tool == "." || tool == "..")
+                throw new ArgumentException("O nome da ferramenta deve ser um arquivo simples de System32.", nameof(tool));
+        }
     }
 
     public sealed class CommandStep
     {
         public CommandStep(string tool, string arguments, string title = null)
         {
+            RepairTool.ValidateSystem32ToolName(tool);
             Tool = tool;
             Arguments = Environment.ExpandEnvironmentVariables(arguments);
             Title = title;

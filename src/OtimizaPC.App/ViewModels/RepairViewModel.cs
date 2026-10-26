@@ -13,6 +13,7 @@ using OtimizaPC.Core;
 using OtimizaPC.Core.Models;
 using OtimizaPC.Repair.Console;
 using OtimizaPC.Repair.Diagnostics;
+using OtimizaPC.Repair.Fixes;
 using OtimizaPC.Repair.Tools;
 
 namespace OtimizaPC.App.ViewModels
@@ -72,29 +73,279 @@ namespace OtimizaPC.App.ViewModels
         public bool IsProgress { get; }
     }
 
-    public sealed class EventItemViewModel
+    /// <summary>Resultado da execução de um EventFix exibido no cartão.</summary>
+    public sealed class EventFixResultViewModel
     {
-        public EventItemViewModel(EventSummary summary)
+        public bool Success { get; set; }
+        public string Summary { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+
+    /// <summary>ViewModel de um EventFix individual, com seu próprio comando e progresso.</summary>
+    public sealed partial class EventFixItemViewModel : ObservableObject
+    {
+        private readonly EventFix _fix;
+        private readonly Func<EventFixItemViewModel, Task> _run;
+        private readonly Func<bool> _isAnyRunning;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanRun))]
+        private bool _isRunning;
+
+        [ObservableProperty]
+        private int _progress;
+
+        [ObservableProperty]
+        private string _progressText = "0%";
+
+        [ObservableProperty]
+        private EventFixResultViewModel _result;
+
+        public EventFixItemViewModel(EventFix fix, Func<EventFixItemViewModel, Task> run, Func<bool> isAnyRunning)
         {
-            Summary = summary;
-            Status = summary.Importance == EventImportance.High ? HealthStatus.Critical
-                : summary.Importance == EventImportance.Benign ? HealthStatus.Info
-                : HealthStatus.Warning;
+            _fix = fix;
+            _run = run;
+            _isAnyRunning = isAnyRunning;
+            IsEnabled = !fix.RequiresAdmin || AppInfo.IsAdministrator;
+            RunCommand = new AsyncRelayCommand(() => run(this), () => CanRun);
         }
 
-        public EventSummary Summary { get; }
+        public EventFix Fix => _fix;
+        public string Id => _fix.Id;
+        public string Title => "Corrigir: " + _fix.Title;
+        public string Description => _fix.Description;
+        public string Risk => _fix.Risk;
+        public bool RequiresAdmin => _fix.RequiresAdmin;
+        public bool RequiresRestart => _fix.RequiresRestart;
+        public bool NeedsConfirmation => _fix.NeedsConfirmation;
+        public bool IsEnabled { get; }
+        public bool IsLowRisk => _fix.RiskLevel == FixRisk.None || _fix.RiskLevel == FixRisk.Low;
 
+        public bool CanRun => IsEnabled && !_isAnyRunning();
+
+        public string DisabledReason => IsEnabled ? null : "Requer administrador — execute o aplicativo como administrador para habilitar este reparo.";
+
+        public string ToolTipText => IsEnabled
+            ? $"{_fix.Description}\n\nRisco: {_fix.Risk}" + (_fix.RequiresRestart ? "\n\nRequer reiniciar o computador." : string.Empty)
+            : DisabledReason;
+
+        public ObservableCollection<ConsoleLineViewModel> OutputLines { get; } = new ObservableCollection<ConsoleLineViewModel>();
+
+        public IAsyncRelayCommand RunCommand { get; }
+
+        public void NotifyCanRunChanged() => RunCommand.NotifyCanExecuteChanged();
+
+        public void AppendLine(OutputLine line)
+        {
+            if (line.ProgressPercent.HasValue)
+            {
+                Progress = Math.Max(0, Math.Min(100, line.ProgressPercent.Value));
+                ProgressText = Progress + "%";
+            }
+            var last = OutputLines.Count > 0 ? OutputLines[OutputLines.Count - 1] : null;
+            var item = new ConsoleLineViewModel(line.Text, line.IsError, line.IsProgress);
+            if (line.IsProgress && last != null && last.IsProgress)
+                OutputLines[OutputLines.Count - 1] = item;
+            else
+                OutputLines.Add(item);
+        }
+    }
+
+    /// <summary>Filtro da aba Erros do sistema.</summary>
+    public enum EventFilter
+    {
+        Todos,
+        Corrigiveis,
+        Hardware,
+        Informativos,
+    }
+
+    /// <summary>Ordenação da aba Erros do sistema.</summary>
+    public enum EventSort
+    {
+        PorGravidade,
+        PorQuantidade,
+    }
+
+    /// <summary>ViewModel de um item de erro do sistema com diagnóstico, correções e estado de execução.</summary>
+    public sealed partial class EventItemViewModel : ObservableObject
+    {
+        private CancellationTokenSource _cts;
+        private readonly object _fixGate = new object();
+        private readonly IDialogService _dialogs;
+        private readonly Func<bool> _isAnyRunning;
+        private readonly Action _notifyOthers;
+
+        [ObservableProperty]
+        private bool _isFixRunning;
+
+        [ObservableProperty]
+        private EventFixResultViewModel _fixResult;
+
+        public EventItemViewModel(EventSummary summary, IDialogService dialogs, Func<bool> isAnyRunning, Action notifyOthers)
+        {
+            Summary = summary;
+            _dialogs = dialogs;
+            _isAnyRunning = isAnyRunning;
+            _notifyOthers = notifyOthers;
+
+            // Diagnóstico a partir do catálogo
+            Diagnosis = EventFixCatalog.Diagnosis(summary);
+
+            // Status visual baseado na classificação
+            Status = Diagnosis.Classification == EventDiagnosisClass.Hardware ? HealthStatus.Critical
+                : Diagnosis.Classification == EventDiagnosisClass.Informativo ? HealthStatus.Info
+                : HealthStatus.Warning;
+
+            // Monta os fix items
+            var rawFixes = EventFixCatalog.For(summary);
+            Fixes = rawFixes
+                .Select(f => new EventFixItemViewModel(f, item => RunFixAsync(item), isAnyRunning))
+                .ToList();
+
+            HasFixes = Fixes.Count > 0;
+            HasGuidance = !HasFixes && !string.IsNullOrWhiteSpace(Diagnosis.Guidance);
+
+            CancelFixCommand = new RelayCommand(CancelFix, () => IsFixRunning);
+            CopyDetailsCommand = new RelayCommand(CopyDetails);
+            OpenEventViewerCommand = new RelayCommand(OpenEventViewer);
+            ReloadCommand = new AsyncRelayCommand(ReloadAsync);
+        }
+
+        public EventSummary Summary { get; private set; }
+        public EventDiagnosis Diagnosis { get; private set; }
         public HealthStatus Status { get; }
+        public IReadOnlyList<EventFixItemViewModel> Fixes { get; }
+        public bool HasFixes { get; }
+        public bool HasGuidance { get; }
 
-        public string Title => Summary.Explanation ?? $"{Summary.Provider} (evento {Summary.EventId})";
-
-        public string Subject => Summary.Subject == null ? null : "Programa: " + Summary.Subject;
-
+        public string Title => Diagnosis.Title;
+        public string Subject => Summary.Subject == null ? null : "Origem: " + Summary.Subject;
         public string Detail =>
             $"{Summary.Provider} · evento {Summary.EventId} · log {Summary.Log} · {Summary.Count}× · última em {Summary.Last:dd/MM HH:mm}"
             + (Summary.Count > 1 ? $" · primeira em {Summary.First:dd/MM HH:mm}" : string.Empty);
-
         public string Message => Summary.Message ?? "(sem descrição)";
+        public string GuidanceText => Diagnosis.Guidance;
+
+        public bool IsFixable => HasFixes;
+        public bool IsHardware => Diagnosis.Classification == EventDiagnosisClass.Hardware;
+        public bool IsInformativo => Diagnosis.Classification == EventDiagnosisClass.Informativo;
+
+        public IRelayCommand CancelFixCommand { get; }
+        public IRelayCommand CopyDetailsCommand { get; }
+        public IRelayCommand OpenEventViewerCommand { get; }
+        public IAsyncRelayCommand ReloadCommand { get; }
+
+        // Callback para quando o cartão precisa recarregar (injetado por RepairViewModel)
+        public Func<Task> ReloadCallback { get; set; }
+
+        public bool IsAnyFixLowRiskNoRestart =>
+            Fixes.Any(f => f.IsLowRisk && !f.RequiresRestart);
+
+        private async Task RunFixAsync(EventFixItemViewModel fixItem, bool fromBatch = false)
+        {
+            lock (_fixGate)
+            {
+                if ((!fromBatch && !fixItem.CanRun) || !fixItem.IsEnabled || IsFixRunning) return;
+                IsFixRunning = true;
+            }
+
+            // Confirmação quando necessário
+            if (fixItem.NeedsConfirmation)
+            {
+                var msg = fixItem.Description
+                    + $"\n\nRisco: {fixItem.Risk}"
+                    + (fixItem.RequiresRestart ? "\n\nSerá preciso reiniciar o computador para concluir." : string.Empty);
+                if (!await _dialogs.ConfirmAsync(fixItem.Fix.Title, msg, "Corrigir"))
+                {
+                    IsFixRunning = false;
+                    return;
+                }
+            }
+
+            var localCts = new CancellationTokenSource();
+            _cts = localCts;
+            FixResult = null;
+            fixItem.IsRunning = true;
+            fixItem.Progress = 0;
+            fixItem.ProgressText = "0%";
+            fixItem.OutputLines.Clear();
+            _notifyOthers?.Invoke();
+
+            var dispatcher = Application.Current.Dispatcher;
+            try
+            {
+                var result = await fixItem.Fix.RunAsync(
+                    line => dispatcher.BeginInvoke(new Action(() => fixItem.AppendLine(line))),
+                    localCts.Token, fixItem.NeedsConfirmation);
+
+                FixResult = new EventFixResultViewModel
+                {
+                    Success = result.Success,
+                    Summary = result.Summary,
+                    Timestamp = DateTime.Now,
+                };
+            }
+            catch (OperationCanceledException)
+            {
+                FixResult = new EventFixResultViewModel { Success = false, Summary = "Interrompido pelo usuário.", Timestamp = DateTime.Now };
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Falha ao executar fix '{fixItem.Id}'", ex);
+                FixResult = new EventFixResultViewModel { Success = false, Summary = "Erro: " + ex.Message, Timestamp = DateTime.Now };
+            }
+            finally
+            {
+                fixItem.IsRunning = false;
+                IsFixRunning = false;
+                if (ReferenceEquals(_cts, localCts)) _cts = null;
+                localCts.Dispose();
+                _notifyOthers?.Invoke();
+                CancelFixCommand.NotifyCanExecuteChanged();
+            }
+        }
+
+        internal Task RunBatchFixAsync(EventFixItemViewModel fixItem) => RunFixAsync(fixItem, true);
+
+        private void CancelFix() => _cts?.Cancel();
+
+        private void CopyDetails()
+        {
+            try
+            {
+                var text = $"{Title}\n{Detail}\n\nDiagnóstico: {Diagnosis.PlainText}\nEvidência: {Diagnosis.Evidence}\n\nMensagem do Windows:\n{Message}";
+                Clipboard.SetText(text);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Não foi possível copiar: " + ex.Message);
+            }
+        }
+
+        private void OpenEventViewer()
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo("eventvwr.msc") { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Não foi possível abrir o Visualizador de Eventos: " + ex.Message);
+            }
+        }
+
+        private async Task ReloadAsync()
+        {
+            if (ReloadCallback != null)
+                await ReloadCallback();
+        }
+
+        partial void OnIsFixRunningChanged(bool value)
+        {
+            CancelFixCommand.NotifyCanExecuteChanged();
+            foreach (var fix in Fixes) fix.NotifyCanRunChanged();
+        }
     }
 
     public sealed class CrashItemViewModel
@@ -151,6 +402,7 @@ namespace OtimizaPC.App.ViewModels
         private bool _crashesLoaded;
         private bool _devicesLoaded;
         private IReadOnlyList<DriverInfo> _allDrivers = new DriverInfo[0];
+        private IReadOnlyList<EventItemViewModel> _allEvents = new List<EventItemViewModel>();
 
         [ObservableProperty]
         [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
@@ -185,6 +437,60 @@ namespace OtimizaPC.App.ViewModels
 
         [ObservableProperty]
         private bool _showMicrosoftDrivers;
+
+        // ---------- Erros do sistema — filtros, busca e ordenação ----------
+
+        [ObservableProperty]
+        private EventFilter _eventFilter = EventFilter.Todos;
+
+        [ObservableProperty]
+        private EventSort _eventSort = EventSort.PorGravidade;
+
+        [ObservableProperty]
+        private string _eventSearch = string.Empty;
+
+        [ObservableProperty]
+        private string _eventsSummaryText;
+
+        [ObservableProperty]
+        private bool _isEventBatchRunning;
+
+        // Propriedades de filtro expostas como bool para binding via RadioButton/ToggleButton
+        public bool FilterTodos
+        {
+            get => EventFilter == EventFilter.Todos;
+            set { if (value) EventFilter = EventFilter.Todos; }
+        }
+
+        public bool FilterCorrigiveis
+        {
+            get => EventFilter == EventFilter.Corrigiveis;
+            set { if (value) EventFilter = EventFilter.Corrigiveis; }
+        }
+
+        public bool FilterHardware
+        {
+            get => EventFilter == EventFilter.Hardware;
+            set { if (value) EventFilter = EventFilter.Hardware; }
+        }
+
+        public bool FilterInformativos
+        {
+            get => EventFilter == EventFilter.Informativos;
+            set { if (value) EventFilter = EventFilter.Informativos; }
+        }
+
+        public bool SortPorGravidade
+        {
+            get => EventSort == EventSort.PorGravidade;
+            set { if (value) EventSort = EventSort.PorGravidade; }
+        }
+
+        public bool SortPorQuantidade
+        {
+            get => EventSort == EventSort.PorQuantidade;
+            set { if (value) EventSort = EventSort.PorQuantidade; }
+        }
 
         public RepairViewModel(IDialogService dialogs)
         {
@@ -223,6 +529,23 @@ namespace OtimizaPC.App.ViewModels
 
         partial void OnShowMicrosoftDriversChanged(bool value) => FillDrivers();
 
+        partial void OnEventFilterChanged(EventFilter value)
+        {
+            OnPropertyChanged(nameof(FilterTodos));
+            OnPropertyChanged(nameof(FilterCorrigiveis));
+            OnPropertyChanged(nameof(FilterHardware));
+            OnPropertyChanged(nameof(FilterInformativos));
+            ApplyEventsFilter();
+        }
+
+        partial void OnEventSortChanged(EventSort value)
+        {
+            OnPropertyChanged(nameof(SortPorGravidade));
+            OnPropertyChanged(nameof(SortPorQuantidade));
+            ApplyEventsFilter();
+        }
+
+        partial void OnEventSearchChanged(string value) => ApplyEventsFilter();
         public void OnActivated() => _ = LoadTabAsync(SelectedTab);
 
         public void OnDeactivated()
@@ -253,7 +576,8 @@ namespace OtimizaPC.App.ViewModels
             }
 
             _running = tool;
-            _cts = new CancellationTokenSource();
+            var localCts = new CancellationTokenSource();
+            _cts = localCts;
             IsRunning = true;
             ResultText = null;
             Progress = 0;
@@ -264,7 +588,7 @@ namespace OtimizaPC.App.ViewModels
 
             try
             {
-                var result = await tool.RunAsync(line => dispatcher.BeginInvoke(new Action(() => AppendLine(line))), _cts.Token);
+                var result = await tool.RunAsync(line => dispatcher.BeginInvoke(new Action(() => AppendLine(line))), localCts.Token);
                 ResultText = result.Summary;
                 ResultStatus = result.Success ? HealthStatus.Ok : HealthStatus.Warning;
             }
@@ -283,6 +607,8 @@ namespace OtimizaPC.App.ViewModels
             {
                 IsRunning = false;
                 _running = null;
+                if (ReferenceEquals(_cts, localCts)) _cts = null;
+                localCts.Dispose();
             }
         }
 
@@ -345,6 +671,9 @@ namespace OtimizaPC.App.ViewModels
 
         // ---------- Erros do sistema ----------
 
+        private bool IsAnyEventFixRunning() =>
+            _allEvents.Any(e => e.IsFixRunning) || IsEventBatchRunning;
+
         [RelayCommand]
         private async Task LoadEventsAsync()
         {
@@ -353,18 +682,127 @@ namespace OtimizaPC.App.ViewModels
             try
             {
                 var summary = await Task.Run(() => EventLogAnalyzer.Analyze(EventDays, CancellationToken.None));
-                Events.Clear();
-                foreach (var item in summary) Events.Add(new EventItemViewModel(item));
-                var important = summary.Count(s => s.Importance == EventImportance.High);
-                EventsStatus = summary.Count == 0
-                    ? $"Nenhum erro nos últimos {EventDays} dias."
-                    : $"{summary.Sum(s => s.Count)} erros em {summary.Count} tipos nos últimos {EventDays} dias"
-                      + (important > 0 ? $" · {important} tipo(s) indicam problema de hardware ou estabilidade." : ".");
+
+                // Cria os view models com acesso ao serviço de diálogo e ao estado de execução
+                _allEvents = summary
+                    .Select(s =>
+                    {
+                        var vm = new EventItemViewModel(s, _dialogs, IsAnyEventFixRunning, NotifyAllEventFixes);
+                        vm.ReloadCallback = LoadEventsAsync;
+                        return vm;
+                    })
+                    .ToList();
+
+                ApplyEventsFilter();
+                UpdateEventsSummary(summary);
             }
             catch (Exception ex)
             {
                 Log.Error("Falha ao ler eventos", ex);
                 EventsStatus = "Erro ao ler os logs: " + ex.Message;
+            }
+        }
+
+        private void UpdateEventsSummary(IReadOnlyList<EventSummary> summary)
+        {
+            var totalCount = summary.Sum(s => s.Count);
+            var totalTypes = summary.Count;
+            var fixable = _allEvents.Count(e => e.HasFixes);
+            EventsStatus = summary.Count == 0
+                ? $"Nenhum erro nos últimos {EventDays} dias."
+                : $"{totalCount} erros em {totalTypes} tipos nos últimos {EventDays} dias · {fixable} corrigível(is).";
+            EventsSummaryText = summary.Count == 0
+                ? null
+                : $"{totalCount} erros em {totalTypes} tipos · {fixable} corrigível(is)";
+        }
+
+        private void ApplyEventsFilter()
+        {
+            var search = (EventSearch ?? string.Empty).Trim();
+            var filtered = _allEvents.Where(e =>
+            {
+                // Filtro de categoria
+                switch (EventFilter)
+                {
+                    case EventFilter.Corrigiveis when !e.HasFixes: return false;
+                    case EventFilter.Hardware when !e.IsHardware: return false;
+                    case EventFilter.Informativos when !e.IsInformativo: return false;
+                }
+
+                // Busca por texto
+                if (search.Length > 0)
+                {
+                    var hay = $"{e.Title} {e.Subject} {e.Summary.Provider} {e.Summary.EventId} {e.Diagnosis.PlainText}";
+                    if (hay.IndexOf(search, StringComparison.OrdinalIgnoreCase) < 0) return false;
+                }
+
+                return true;
+            });
+
+            // Ordenação
+            IOrderedEnumerable<EventItemViewModel> ordered;
+            if (EventSort == EventSort.PorQuantidade)
+                ordered = filtered.OrderByDescending(e => e.Summary.Count).ThenBy(e => e.Title);
+            else
+                ordered = filtered
+                    .OrderBy(e => e.Diagnosis.Classification) // Real < Hardware < Informativo (por valor enum; Real=0, Hardware=2, Informativo=1)
+                    .ThenByDescending(e => e.Summary.IsCritical)
+                    .ThenByDescending(e => e.Summary.Count);
+
+            Events.Clear();
+            foreach (var e in ordered) Events.Add(e);
+        }
+
+        private void NotifyAllEventFixes()
+        {
+            foreach (var e in _allEvents)
+                foreach (var fix in e.Fixes)
+                    fix.NotifyCanRunChanged();
+        }
+
+        /// <summary>Executa em fila todos os fixes de risco baixo/nenhum sem reinício, com uma única confirmação.</summary>
+        [RelayCommand]
+        private async Task FixRecommendedAsync()
+        {
+            var candidates = _allEvents
+                .Where(e => e.HasFixes)
+                .SelectMany(e => e.Fixes.Select(f => (Event: e, Fix: f)))
+                .Where(x => EventFixPolicy.CanBeRecommended(x.Fix.Fix)
+                    && x.Fix.IsLowRisk && !x.Fix.RequiresRestart && x.Fix.IsEnabled)
+                .ToList();
+
+            if (candidates.Count == 0)
+            {
+                EventsStatus = "Nenhuma correção de risco baixo disponível.";
+                return;
+            }
+
+            // Confirmação única listando tudo
+            var list = string.Join("\n", candidates.Select(x => $"• {x.Fix.Fix.Title} ({x.Event.Title})"));
+            var msg = $"Serão executados {candidates.Count} reparo(s) de risco baixo:\n\n{list}\n\nNenhum requer reiniciar o computador.";
+            if (!await _dialogs.ConfirmAsync("Corrigir recomendados", msg, "Corrigir tudo")) return;
+
+            IsEventBatchRunning = true;
+            NotifyAllEventFixes();
+            try
+            {
+                foreach (var (eventVm, fixVm) in candidates)
+                {
+                    // Revalida cada item no instante da execução, depois da confirmação única.
+                    if (!EventFixPolicy.CanBeRecommended(fixVm.Fix)
+                        || !fixVm.IsEnabled || fixVm.RequiresRestart || fixVm.NeedsConfirmation
+                        || fixVm.IsRunning || eventVm.IsFixRunning)
+                        continue;
+                    await eventVm.RunBatchFixAsync(fixVm);
+                }
+            }
+            finally
+            {
+                IsEventBatchRunning = false;
+                NotifyAllEventFixes();
+                // Recarrega a lista para refletir o estado atual
+                _eventsLoaded = false;
+                await LoadEventsAsync();
             }
         }
 
