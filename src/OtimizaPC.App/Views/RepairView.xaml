@@ -24,9 +24,9 @@
             <TabItem Header="Ferramentas">
                 <Grid Margin="0,12,0,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="420" />
+                        <ColumnDefinition MinWidth="320" Width="2*" />
                         <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="3*" />
                     </Grid.ColumnDefinitions>
 
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
@@ -169,7 +169,7 @@
                             </Border>
 
                             <Border
-                                Background="#FF101010"
+                                Background="{DynamicResource LayerFillColorDefaultBrush}"
                                 CornerRadius="6">
                                 <ListBox
                                     x:Name="ConsoleList"
@@ -200,10 +200,10 @@
                                             <TextBlock Text="{Binding Text}">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="#FFD4D4D4" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsError}" Value="True">
-                                                                <Setter Property="Foreground" Value="#FFF48771" />
+                                                                <Setter Property="Foreground" Value="{DynamicResource StatusCriticalBrush}" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>

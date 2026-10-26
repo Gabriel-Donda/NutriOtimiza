@@ -82,19 +82,20 @@
 
         <!-- Itens por grupo -->
         <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <ItemsControl Margin="0,0,0,28" ItemsSource="{Binding Groups}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <ui:Card
-                            Margin="0,0,0,12"
-                            Padding="20,14"
-                            HorizontalContentAlignment="Stretch">
-                            <StackPanel>
-                                <TextBlock
-                                    Margin="0,0,0,8"
-                                    Style="{StaticResource SectionTitle}"
-                                    Text="{Binding Name}" />
-                                <ItemsControl ItemsSource="{Binding Items}">
+            <StackPanel>
+                <ItemsControl Margin="0,0,0,28" ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <ui:Card
+                                Margin="0,0,0,12"
+                                Padding="20,14"
+                                HorizontalContentAlignment="Stretch">
+                                <StackPanel>
+                                    <TextBlock
+                                        Margin="0,0,0,8"
+                                        Style="{StaticResource SectionTitle}"
+                                        Text="{Binding Name}" />
+                                    <ItemsControl ItemsSource="{Binding Items}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Margin="0,6" IsEnabled="{Binding IsEnabled}">
@@ -102,7 +103,7 @@
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="120" />
+                                                    <ColumnDefinition MinWidth="96" Width="Auto" />
                                                 </Grid.ColumnDefinitions>
                                                 <CheckBox
                                                     MinWidth="0"
@@ -124,10 +125,10 @@
                                                         Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}" />
                                                 </Grid>
                                                 <StackPanel Grid.Column="2">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
+                                                    <DockPanel LastChildFill="True">
                                                         <Border
                                                             Background="{DynamicResource StatusWarningBrush}"
+                                                            DockPanel.Dock="Right"
                                                             Style="{StaticResource Badge}"
                                                             Visibility="{Binding IsModerate, Converter={StaticResource BoolToVisibility}}">
                                                             <TextBlock
@@ -135,7 +136,8 @@
                                                                 Foreground="Black"
                                                                 Text="Efeito colateral" />
                                                         </Border>
-                                                    </StackPanel>
+                                                        <TextBlock FontWeight="SemiBold" Text="{Binding Name}" TextWrapping="Wrap" />
+                                                    </DockPanel>
                                                     <TextBlock
                                                         Margin="0,2,0,0"
                                                         Style="{StaticResource SecondaryText}"
@@ -168,12 +170,21 @@
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </ui:Card>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ui:Card>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock
+                    Margin="20,12,20,28"
+                    HorizontalAlignment="Center"
+                    Style="{StaticResource SecondaryText}"
+                    Text="Nenhum item de limpeza disponível neste computador."
+                    TextAlignment="Center"
+                    TextWrapping="Wrap"
+                    Visibility="{Binding Groups.Count, Converter={StaticResource ZeroToVisible}}" />
+            </StackPanel>
         </ScrollViewer>
     </DockPanel>
 </UserControl>
