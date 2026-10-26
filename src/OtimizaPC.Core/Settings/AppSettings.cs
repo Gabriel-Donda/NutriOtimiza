@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
@@ -32,6 +33,9 @@ namespace OtimizaPC.Core.Settings
 
         [DataMember] public DateTime? LastUpdateCheck { get; set; }
 
+        /// <summary>Identificadores dos componentes de sensores que o usuário recolheu.</summary>
+        [DataMember] public List<string> CollapsedSensorGroups { get; set; } = new List<string>();
+
         // O DataContractJsonSerializer não executa inicializadores de propriedade: valores padrão para campos ausentes
         [OnDeserializing]
         private void OnDeserializing(StreamingContext context)
@@ -40,6 +44,7 @@ namespace OtimizaPC.Core.Settings
             CheckUpdatesOnStartup = true;
             AutoInstallUpdates = true;
             UpdateRepository = string.Empty;
+            CollapsedSensorGroups = new List<string>();
         }
     }
 
