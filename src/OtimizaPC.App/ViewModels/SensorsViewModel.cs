@@ -23,7 +23,8 @@ namespace OtimizaPC.App.ViewModels
         [ObservableProperty] private double _gaugeValue;
         [ObservableProperty] private Brush _statusBrush;
         private SensorKind _kind;
-        public SensorItem(SensorReading reading) { Name = reading.Name; KindName = SensorReading.KindName(reading.Kind); Update(reading); }
+        public SensorItem(SensorReading reading) { Id = reading.Id; Name = reading.Name; KindName = SensorReading.KindName(reading.Kind); Update(reading); }
+        public string Id { get; }
         public string Name { get; }
         public string KindName { get; }
         public bool IsGauge => _kind == SensorKind.Temperature || _kind == SensorKind.Load || _kind == SensorKind.Level || _kind == SensorKind.Control;
@@ -43,14 +44,16 @@ namespace OtimizaPC.App.ViewModels
     }
     public sealed partial class SensorGroup : ObservableObject
     {
-        public SensorGroup(string groupId, string name, HardwareKind kind, bool isExpanded)
+        public SensorGroup(string groupId, string name, string hardwareName, HardwareKind kind, bool isExpanded)
         {
             GroupId = groupId;
             Name = name;
+            HardwareName = hardwareName;
             Icon = IconFor(kind);
             IsExpanded = isExpanded;
         }
         public string GroupId { get; }
+        public string HardwareName { get; }
         public string Name { get; } public SymbolRegular Icon { get; }
         [ObservableProperty] private bool _isExpanded;
         public event EventHandler ExpansionChanged;
@@ -59,8 +62,11 @@ namespace OtimizaPC.App.ViewModels
         public ObservableCollection<SensorSection> Sections { get; } = new ObservableCollection<SensorSection>();
         public string MainValue => Items.FirstOrDefault(i => i.IsGauge)?.Value ?? Items.FirstOrDefault()?.Value ?? "—";
         public string TemperatureMax => Items.FirstOrDefault(i => i.KindName == "Temperatura")?.Max ?? "—";
+        public string TemperatureMaximumText => "Máx " + TemperatureMax;
         public bool HasTemperature => Items.Any(i => i.KindName == "Temperatura");
-        public string MainKind => Items.FirstOrDefault(i => i.IsGauge)?.KindName ?? Items.FirstOrDefault()?.KindName ?? "Sensores";
+        public string Subtitle => !string.IsNullOrWhiteSpace(HardwareName) && !string.Equals(HardwareName, Name, StringComparison.OrdinalIgnoreCase)
+            ? HardwareName
+            : Items.Count == 1 ? "1 sensor" : $"{Items.Count} sensores";
         private static SymbolRegular IconFor(HardwareKind kind)
         {
             switch (kind) { case HardwareKind.Cpu: return SymbolRegular.DeveloperBoard24; case HardwareKind.Gpu: return SymbolRegular.Video24; case HardwareKind.Memory: return SymbolRegular.Ram20; case HardwareKind.Motherboard: return SymbolRegular.Board24; case HardwareKind.Storage: return SymbolRegular.Storage24; case HardwareKind.Battery: return SymbolRegular.Battery624; case HardwareKind.Network: return SymbolRegular.NetworkCheck24; default: return SymbolRegular.Temperature24; }
@@ -71,11 +77,12 @@ namespace OtimizaPC.App.ViewModels
             foreach (var section in Sections.ToList())
             {
                 if (!grouped.ContainsKey(section.Name)) { Sections.Remove(section); continue; }
+                foreach (var item in section.Items.Where(item => !grouped[section.Name].Contains(item)).ToList()) section.Items.Remove(item);
                 foreach (var item in grouped[section.Name]) if (!section.Items.Contains(item)) section.Items.Add(item);
             }
             foreach (var group in grouped)
                 if (!Sections.Any(s => s.Name == group.Key)) Sections.Add(new SensorSection(group.Key, ParseKind(group.Key), group.Value));
-            OnPropertyChanged(nameof(MainValue)); OnPropertyChanged(nameof(TemperatureMax)); OnPropertyChanged(nameof(MainKind));
+            OnPropertyChanged(nameof(MainValue)); OnPropertyChanged(nameof(TemperatureMax)); OnPropertyChanged(nameof(TemperatureMaximumText)); OnPropertyChanged(nameof(Subtitle));
         }
         private static SensorKind ParseKind(string name) { foreach (SensorKind kind in Enum.GetValues(typeof(SensorKind))) if (SensorReading.KindName(kind) == name) return kind; return SensorKind.Other; }
     }
@@ -112,12 +119,44 @@ namespace OtimizaPC.App.ViewModels
         }
         private void Apply(IReadOnlyList<SensorReading> readings)
         {
-            foreach (var reading in readings.OrderBy(r => r.Kind)) { if (_items.TryGetValue(reading.Id, out var item)) { item.Update(reading); continue; } if (!_groups.TryGetValue(reading.GroupId, out var group)) { var groupId = string.IsNullOrWhiteSpace(reading.GroupId) ? reading.GroupName : reading.GroupId; group = new SensorGroup(groupId, reading.GroupName, reading.HardwareKind, !_settings.CollapsedSensorGroups.Contains(groupId)); group.ExpansionChanged += OnGroupExpansionChanged; _groups[reading.GroupId] = group; Groups.Add(group); } item = new SensorItem(reading); _items[reading.Id] = item; group.Items.Add(item); group.RebuildSections(); }
+            var currentReadings = readings.Where(reading => !string.IsNullOrWhiteSpace(reading.Id) && !string.IsNullOrWhiteSpace(reading.GroupId)).ToList();
+            var currentItemIds = new HashSet<string>(currentReadings.Select(reading => reading.Id));
+            var currentGroupIds = new HashSet<string>(currentReadings.Select(reading => reading.GroupId));
+
+            foreach (var reading in currentReadings.OrderBy(reading => reading.Kind))
+            {
+                if (_items.TryGetValue(reading.Id, out var item)) { item.Update(reading); continue; }
+                if (!_groups.TryGetValue(reading.GroupId, out var group))
+                {
+                    group = new SensorGroup(reading.GroupId, reading.GroupName, reading.HardwareName, reading.HardwareKind, !_settings.CollapsedSensorGroups.Contains(reading.GroupId));
+                    group.ExpansionChanged += OnGroupExpansionChanged;
+                    _groups[reading.GroupId] = group;
+                    Groups.Add(group);
+                }
+                item = new SensorItem(reading);
+                _items[reading.Id] = item;
+                group.Items.Add(item);
+            }
+
+            foreach (var itemId in _items.Keys.Where(itemId => !currentItemIds.Contains(itemId)).ToList())
+            {
+                var item = _items[itemId];
+                foreach (var group in Groups) group.Items.Remove(item);
+                _items.Remove(itemId);
+            }
+            foreach (var groupId in _groups.Keys.Where(groupId => !currentGroupIds.Contains(groupId)).ToList())
+            {
+                var group = _groups[groupId];
+                group.ExpansionChanged -= OnGroupExpansionChanged;
+                Groups.Remove(group);
+                _groups.Remove(groupId);
+            }
             foreach (var group in Groups) group.RebuildSections();
             OnPropertyChanged(nameof(HasGroups));
         }
         private void SetAllGroupsExpanded(bool isExpanded)
         {
+            if (Groups.All(group => group.IsExpanded == isExpanded)) return;
             _changingExpansion = true;
             foreach (var group in Groups) group.IsExpanded = isExpanded;
             _changingExpansion = false;

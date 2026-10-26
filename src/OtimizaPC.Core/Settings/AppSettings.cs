@@ -64,7 +64,11 @@ namespace OtimizaPC.Core.Settings
             {
                 if (!File.Exists(_filePath)) return new AppSettings();
                 using (var stream = File.OpenRead(_filePath))
-                    return (AppSettings)new DataContractJsonSerializer(typeof(AppSettings)).ReadObject(stream) ?? new AppSettings();
+                {
+                    var settings = (AppSettings)new DataContractJsonSerializer(typeof(AppSettings)).ReadObject(stream) ?? new AppSettings();
+                    if (settings.CollapsedSensorGroups == null) settings.CollapsedSensorGroups = new List<string>();
+                    return settings;
+                }
             }
             catch (Exception ex)
             {
