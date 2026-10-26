@@ -24,17 +24,25 @@ namespace OtimizaPC.App.ViewModels
         [ObservableProperty]
         private double[] _history;
 
-        public MetricCard(string title, SymbolRegular icon, bool showChart = true, double maximum = 100)
+        public MetricCard(string title, SymbolRegular icon, bool showChart = true, double maximum = 100,
+            string destination = null, string tooltip = null)
         {
             Title = title;
             Icon = icon;
             ShowChart = showChart;
             Maximum = maximum;
+            Destination = destination;
+            Tooltip = tooltip;
         }
 
         public string Title { get; }
 
         public SymbolRegular Icon { get; }
+
+        /// <summary>Chave de navegação do card (ex.: "sensors", "hardware", "disk").</summary>
+        public string Destination { get; }
+
+        public string Tooltip { get; }
 
         public bool ShowChart { get; }
 

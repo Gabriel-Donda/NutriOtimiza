@@ -112,25 +112,38 @@
                                     <ItemsControl ItemsSource="{Binding Items}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Grid Margin="0,6">
+                                                <Border Style="{StaticResource TableRow}" Margin="0,2">
+                                                <Grid Margin="0,4">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="*" />
                                                     </Grid.ColumnDefinitions>
                                                     <CheckBox
+                                                        AutomationProperties.Name="{Binding DisplayName}"
                                                         MinWidth="0"
                                                         Margin="0,0,8,0"
                                                         VerticalAlignment="Top"
                                                         IsChecked="{Binding IsSelected}" />
-                                            <Image Grid.Column="1" Width="32" Height="32" Margin="0,0,8,0" HorizontalAlignment="Left" VerticalAlignment="Top" Source="{Binding Icon}" Stretch="Uniform" />
-                                            <ui:SymbolIcon Grid.Column="1" Width="32" Height="32" Margin="0,0,8,0" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="22" Symbol="AppStore24" Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}" />
-                                            <StackPanel Grid.Column="1" Margin="40,0,0,0">
-                                                        <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" TextWrapping="Wrap" />
-                                                        <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Description}" />
+                                                    <Grid Grid.Column="1" Width="32" Height="32" Margin="0,0,8,0" HorizontalAlignment="Left" VerticalAlignment="Top"><Image Width="32" Height="32" Source="{Binding Icon}" Stretch="Uniform"/><ui:SymbolIcon Width="32" Height="32" FontSize="22" Symbol="AppStore24" Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}"/></Grid>
+                                                    <StackPanel Grid.Column="1" Margin="40,0,0,0">
+                                                        <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Description}" TextWrapping="Wrap" />
                                                         <TextBlock
                                                             FontSize="11"
                                                             Style="{StaticResource SecondaryText}"
                                                             Text="{Binding PackageName}" />
+                                                        <StackPanel
+                                                            Orientation="Horizontal"
+                                                            Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}">
+                                                            <ui:SymbolIcon
+                                                                Margin="0,2,6,0"
+                                                                FontSize="14"
+                                                                Foreground="{DynamicResource StatusWarningBrush}"
+                                                                Symbol="Warning24" />
+                                                            <TextBlock
+                                                                Style="{StaticResource SecondaryText}"
+                                                                Text="Será removido" />
+                                                        </StackPanel>
                                                         <TextBlock
                                                             FontSize="12"
                                                             Foreground="{DynamicResource StatusCriticalBrush}"
@@ -139,6 +152,7 @@
                                                             Visibility="{Binding StatusText, Converter={StaticResource NullToCollapsed}}" />
                                             </StackPanel>
                                                 </Grid>
+                                                </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>

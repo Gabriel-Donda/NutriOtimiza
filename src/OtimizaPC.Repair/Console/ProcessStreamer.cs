@@ -10,7 +10,14 @@ namespace OtimizaPC.Repair.Console
     /// <summary>Executa um processo e entrega cada linha de saída em tempo real, com a codificação detectada.</summary>
     public static class ProcessStreamer
     {
-        public static async Task<int> RunAsync(string fileName, string arguments, Action<OutputLine> onLine, CancellationToken cancellationToken)
+        private static readonly TimeSpan CancelGrace = TimeSpan.FromSeconds(3);
+        private static readonly TimeSpan ExitGrace = TimeSpan.FromSeconds(5);
+
+        public static Task<int> RunAsync(string fileName, string arguments, Action<OutputLine> onLine, CancellationToken cancellationToken) =>
+            RunAsync(fileName, arguments, onLine, cancellationToken, onStarted: null);
+
+        internal static async Task<int> RunAsync(string fileName, string arguments, Action<OutputLine> onLine,
+            CancellationToken cancellationToken, Action<int> onStarted)
         {
             var startInfo = new ProcessStartInfo
             {
@@ -25,10 +32,15 @@ namespace OtimizaPC.Repair.Console
             using (var process = new Process { StartInfo = startInfo })
             {
                 process.Start();
-                var cancelled = new TaskCompletionSource<bool>();
+                onStarted?.Invoke(process.Id);
+
+                var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task termination = null;
+
                 using (cancellationToken.Register(() =>
                 {
-                    KillTree(process);
+                    // Encerrar a árvore pode levar alguns segundos: não bloqueia quem pediu o cancelamento (a UI)
+                    termination = Task.Run(() => KillTree(process));
                     cancelled.TrySetResult(true);
                 }))
                 {
@@ -36,18 +48,51 @@ namespace OtimizaPC.Repair.Console
                         PumpAsync(process.StandardOutput.BaseStream, onLine, isError: false),
                         PumpAsync(process.StandardError.BaseStream, onLine, isError: true));
 
-                    // Ao cancelar, um processo neto que sobreviva pode segurar a saída aberta: não espera por ele
-                    var first = await Task.WhenAny(pumps, cancelled.Task).ConfigureAwait(false);
-                    if (first != pumps) await Task.WhenAny(pumps, Task.Delay(CancelGrace)).ConfigureAwait(false);
+                    try
+                    {
+                        var first = await Task.WhenAny(pumps, cancelled.Task).ConfigureAwait(false);
 
-                    cancellationToken.ThrowIfCancellationRequested();
-                    process.WaitForExit();
-                    return process.ExitCode;
+                        if (first == pumps)
+                        {
+                            // Saída encerrada: propaga falha de leitura, se houver, e confirma a saída do processo
+                            await pumps.ConfigureAwait(false);
+                            if (!process.WaitForExit((int)ExitGrace.TotalMilliseconds))
+                            {
+                                KillTree(process);
+                                if (!process.WaitForExit((int)ExitGrace.TotalMilliseconds))
+                                    throw new InvalidOperationException("O processo não encerrou depois de fechar a saída.");
+                            }
+
+                            Observe(termination);
+                            return process.ExitCode;
+                        }
+
+                        // Cancelado: dá um tempo curto para drenar as últimas linhas e para o taskkill concluir.
+                        // Se um processo neto sobreviver e segurar a saída, não espera indefinidamente.
+                        var drain = termination == null ? pumps : Task.WhenAll(pumps, termination);
+                        await Task.WhenAny(drain, Task.Delay(CancelGrace)).ConfigureAwait(false);
+
+                        // Mesmo quando os pumps não terminam a tempo, as falhas deles precisam ser observadas
+                        Observe(pumps);
+                        Observe(termination);
+
+                        if (!process.WaitForExit((int)CancelGrace.TotalMilliseconds)) KillTree(process);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        return process.ExitCode; // inalcançável quando o token está cancelado
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch
+                    {
+                        // Falha de leitura ou do consumidor das linhas: não deixa o processo órfão
+                        KillTree(process);
+                        throw;
+                    }
                 }
             }
         }
-
-        private static readonly TimeSpan CancelGrace = TimeSpan.FromSeconds(3);
 
         private static async Task PumpAsync(Stream stream, Action<OutputLine> onLine, bool isError)
         {
@@ -80,6 +125,16 @@ namespace OtimizaPC.Repair.Console
                 splitter.Feed(chars, count);
             }
             splitter.Flush();
+        }
+
+        /// <summary>Marca uma tarefa abandonada como observada (evita UnobservedTaskException).</summary>
+        private static void Observe(Task task)
+        {
+            if (task == null) return;
+            task.ContinueWith(t => { var ignored = t.Exception; },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
 
         /// <summary>

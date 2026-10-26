@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 
 namespace OtimizaPC.Cleaning.Files
 {
@@ -7,11 +8,19 @@ namespace OtimizaPC.Cleaning.Files
     {
         public FileTarget(string root, string pattern = "*", bool recursive = true, TimeSpan? minAge = null, bool removeEmptyFolders = true)
         {
-            Root = Environment.ExpandEnvironmentVariables(root ?? string.Empty).TrimEnd('\\');
+            var expanded = Environment.ExpandEnvironmentVariables(root ?? string.Empty);
+            // "C:\" não pode virar "C:": isso é um caminho relativo à unidade (diretório atual), não a raiz
+            Root = IsDriveRoot(expanded) ? expanded : expanded.TrimEnd('\\');
             Pattern = pattern;
             Recursive = recursive;
             MinAge = minAge ?? TimeSpan.Zero;
             RemoveEmptyFolders = removeEmptyFolders && recursive;
+        }
+
+        private static bool IsDriveRoot(string path)
+        {
+            var trimmed = path.TrimEnd('\\');
+            return trimmed.Length == 2 && char.IsLetter(trimmed[0]) && trimmed[1] == ':';
         }
 
         public string Root { get; }
@@ -26,7 +35,12 @@ namespace OtimizaPC.Cleaning.Files
         public bool RemoveEmptyFolders { get; }
 
         /// <summary>Alvo de um único arquivo com nome exato (ex.: C:\Windows\MEMORY.DMP).</summary>
-        public bool IsSingleFile => !Recursive && Pattern.IndexOfAny(new[] { '*', '?' }) < 0;
+        public bool IsSingleFile =>
+            !Recursive &&
+            !string.IsNullOrWhiteSpace(Pattern) &&
+            Pattern.IndexOfAny(new[] { '*', '?' }) < 0 &&
+            // Só aceita nome de arquivo simples: evita quebra de diretório ("..\arquivo.dmp")
+            string.Equals(Pattern, Path.GetFileName(Pattern), StringComparison.Ordinal);
 
         public override string ToString() => $"{Root}\\{Pattern}";
     }

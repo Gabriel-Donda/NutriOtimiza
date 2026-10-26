@@ -81,32 +81,121 @@ namespace OtimizaPC.Hardware
 
         private static List<InfoEntry> GetSummary()
         {
-            var list = new List<InfoEntry>();
-            var cs = Wmi.First("SELECT Manufacturer, Model FROM Win32_ComputerSystem");
-            var os = Wmi.First("SELECT Caption FROM Win32_OperatingSystem");
-            var cpu = Wmi.First("SELECT Name FROM Win32_Processor");
-            var gpus = Wmi.Query("SELECT Name FROM Win32_VideoController").Select(g => g.Str("Name")).Where(n => n != null);
+            var cs = Wmi.First("SELECT Manufacturer, Model, PCSystemType FROM Win32_ComputerSystem");
+            var os = Wmi.First("SELECT Caption, LastBootUpTime FROM Win32_OperatingSystem");
+            var bios = Wmi.First("SELECT Manufacturer, SMBIOSBIOSVersion FROM Win32_BIOS");
+            var board = Wmi.First("SELECT Manufacturer, Product FROM Win32_BaseBoard");
+            var cpus = Wmi.Query("SELECT Name, NumberOfCores, NumberOfLogicalProcessors FROM Win32_Processor");
+            var sticks = Wmi.Query("SELECT Capacity FROM Win32_PhysicalMemory");
+            var arrays = Wmi.Query("SELECT MemoryDevices FROM Win32_PhysicalMemoryArray");
+            var video = Wmi.Query("SELECT Name, CurrentHorizontalResolution, CurrentVerticalResolution FROM Win32_VideoController");
+
+            var installed = sticks.Sum(s => (double)(s.ULong("Capacity") ?? 0));
             var memory = SystemMetrics.GetMemory();
 
-            Add(list, "Computador", Format.Join(" ", cs.Str("Manufacturer"), cs.Str("Model")));
-            Add(list, "Sistema", Format.Join(" — ", os.Str("Caption"), WindowsInfo.DisplayVersion));
-            Add(list, "Processador", cpu.Str("Name"));
-            Add(list, "Memória", Format.Bytes(memory.Total));
-            Add(list, "Vídeo", string.Join(", ", gpus));
-
-            var drives = DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed && d.IsReady).ToList();
-            if (drives.Count > 0)
+            var data = new SummaryData
             {
-                var total = drives.Sum(d => (double)d.TotalSize);
-                var free = drives.Sum(d => (double)d.TotalFreeSpace);
-                Add(list, "Armazenamento", $"{Format.Bytes(free)} livres de {Format.Bytes(total)}");
-            }
-            return list;
+                Manufacturer = cs.Str("Manufacturer"),
+                Model = cs.Str("Model"),
+                OsCaption = os.Str("Caption"),
+                OsVersion = WindowsInfo.DisplayVersion,
+                BiosVendor = bios.Str("Manufacturer"),
+                BiosVersion = bios.Str("SMBIOSBIOSVersion"),
+                BoardManufacturer = board.Str("Manufacturer"),
+                BoardProduct = board.Str("Product"),
+                CpuName = cpus.Select(c => c.Str("Name")).FirstOrDefault(n => n != null),
+                Cores = SumInt(cpus, "NumberOfCores"),
+                Threads = SumInt(cpus, "NumberOfLogicalProcessors"),
+                MemoryTotal = installed > 0
+                    ? (ulong)Math.Round(installed)
+                    : memory.Total > 0 ? (ulong?)memory.Total : null,
+                MemorySticks = sticks.Count,
+                MemorySlots = SumInt(arrays, "MemoryDevices"),
+                Gpu = string.Join(", ", video.Select(v => v.Str("Name")).Where(n => n != null).Distinct()),
+                Disks = SummaryDisks(),
+                Network = GetPrimaryIPv4(),
+                Resolution = SummaryResolution(video),
+                Battery = SummaryBattery(cs.Int("PCSystemType") == 2),
+                LastBoot = os.Date("LastBootUpTime"),
+            };
+
+            return DashboardSummary.Build(data);
         }
 
-        private static void Add(List<InfoEntry> list, string label, string value)
+        private static int? SumInt(IEnumerable<WmiRow> rows, string property)
         {
-            if (!string.IsNullOrWhiteSpace(value)) list.Add(new InfoEntry(label, value));
+            var values = rows.Select(r => r.Int(property)).Where(v => v.HasValue).ToList();
+            return values.Count == 0 ? (int?)null : values.Sum(v => v.Value);
+        }
+
+        private static string SummaryDisks()
+        {
+            try
+            {
+                var drives = DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed && d.IsReady).ToList();
+                if (drives.Count == 0) return null;
+                return string.Join(" · ", drives.Select(d =>
+                    $"{d.Name.TrimEnd('\\')} {Format.Bytes(d.TotalFreeSpace)} livres de {Format.Bytes(d.TotalSize)}"));
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Falha ao resumir os discos: " + ex.Message);
+                return null;
+            }
+        }
+
+        private static string GetPrimaryIPv4()
+        {
+            try
+            {
+                var nics = NetworkInterface.GetAllNetworkInterfaces()
+                    .Where(n => n.OperationalStatus == OperationalStatus.Up
+                                && n.NetworkInterfaceType != NetworkInterfaceType.Loopback
+                                && n.NetworkInterfaceType != NetworkInterfaceType.Tunnel);
+
+                foreach (var nic in nics)
+                {
+                    try
+                    {
+                        var address = nic.GetIPProperties().UnicastAddresses
+                            .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork);
+                        if (address != null) return address.Address.ToString();
+                    }
+                    catch
+                    {
+                        // Adaptador virtual sem propriedades de IP acessíveis
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Falha ao obter o IP principal: " + ex.Message);
+            }
+            return null;
+        }
+
+        private static string SummaryResolution(IEnumerable<WmiRow> video)
+        {
+            foreach (var v in video)
+            {
+                var width = v.Int("CurrentHorizontalResolution");
+                var height = v.Int("CurrentVerticalResolution");
+                if (width > 0 && height > 0) return $"{width} × {height}";
+            }
+            return null;
+        }
+
+        private static string SummaryBattery(bool isMobile)
+        {
+            var batteries = Wmi.Query("SELECT EstimatedChargeRemaining, BatteryStatus FROM Win32_Battery");
+            if (batteries.Count == 0) return isMobile ? null : "Não possui bateria";
+
+            var battery = batteries[0];
+            var charge = battery.Int("EstimatedChargeRemaining");
+            var status = BatteryStatus(battery.Int("BatteryStatus"));
+            if (charge.HasValue && status != null) return $"{charge}% ({status})";
+            if (charge.HasValue) return $"{charge}%";
+            return status;
         }
 
         #endregion

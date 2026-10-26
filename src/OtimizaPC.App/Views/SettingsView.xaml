@@ -4,18 +4,6 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
 
-    <UserControl.Resources>
-        <!-- Linha de configuração: título + descrição à esquerda, controle à direita -->
-        <Style
-            x:Key="SettingCard"
-            BasedOn="{StaticResource {x:Type ui:Card}}"
-            TargetType="ui:Card">
-            <Setter Property="Margin" Value="0,0,0,8" />
-            <Setter Property="Padding" Value="18,14" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-        </Style>
-    </UserControl.Resources>
-
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="28,24,28,28">
             <TextBlock Style="{StaticResource PageTitle}" Text="Configurações" />
@@ -24,17 +12,28 @@
             <!-- Aparência -->
             <TextBlock Margin="0,4,0,8" Style="{StaticResource SectionTitle}" Text="Aparência" />
             <ui:Card Style="{StaticResource SettingCard}">
-                <DockPanel>
-                    <ComboBox
-                        Width="200"
-                        DockPanel.Dock="Right"
-                        ItemsSource="{Binding ThemeOptions}"
-                        SelectedIndex="{Binding ThemeIndex}" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
                     <StackPanel>
                         <TextBlock FontWeight="SemiBold" Text="Tema" />
                         <TextBlock Style="{StaticResource SecondaryText}" Text="Claro, escuro ou acompanhando o Windows." />
                     </StackPanel>
-                </DockPanel>
+                    <ComboBox
+                        Grid.Column="1"
+                        Width="220"
+                        MinHeight="{DynamicResource ControlMinHeight}"
+                        Margin="16,0,0,0"
+                        AutomationProperties.HelpText="Escolha entre tema do Windows, claro ou escuro."
+                        AutomationProperties.Name="Tema da aplicação"
+                        IsTextSearchEnabled="False"
+                        ItemsSource="{Binding ThemeOptions}"
+                        KeyboardNavigation.TabIndex="0"
+                        SelectedIndex="{Binding ThemeIndex}"
+                        ToolTip="Tema da aplicação" />
+                </Grid>
             </ui:Card>
 
             <!-- Atualizações -->
@@ -162,6 +161,7 @@
                     <ui:Button
                         Appearance="Transparent"
                         Command="{Binding LoadHistoryCommand}"
+                        AutomationProperties.Name="Atualizar histórico de alterações"
                         Icon="{ui:SymbolIcon ArrowSync24}"
                         ToolTip="Atualizar" />
                 </StackPanel>
