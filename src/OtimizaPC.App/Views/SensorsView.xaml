@@ -28,7 +28,7 @@
             </Setter>
         </Style>
         <Style x:Key="SensorGaugeProgressBar" TargetType="ProgressBar">
-            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
@@ -73,11 +73,11 @@
                                             <ui:SymbolIcon Grid.Column="3" Margin="12,0,0,0" VerticalAlignment="Center" FontSize="20" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Symbol="ChevronDown24">
                                                 <ui:SymbolIcon.Style>
                                                     <Style TargetType="ui:SymbolIcon">
-                                                        <Setter Property="RenderTransform"><Setter.Value><RotateTransform Angle="180" /></Setter.Value></Setter>
+                                                        <Setter Property="RenderTransform"><Setter.Value><RotateTransform Angle="0" /></Setter.Value></Setter>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsExpanded}" Value="False">
-                                                                <DataTrigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="RenderTransform.Angle" To="0" Duration="0:0:0.15" /></Storyboard></BeginStoryboard></DataTrigger.EnterActions>
-                                                                <DataTrigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="RenderTransform.Angle" To="180" Duration="0:0:0.15" /></Storyboard></BeginStoryboard></DataTrigger.ExitActions>
+                                                            <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                                <DataTrigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="RenderTransform.Angle" To="180" Duration="0:0:0.15" /></Storyboard></BeginStoryboard></DataTrigger.EnterActions>
+                                                                <DataTrigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="RenderTransform.Angle" To="0" Duration="0:0:0.15" /></Storyboard></BeginStoryboard></DataTrigger.ExitActions>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
