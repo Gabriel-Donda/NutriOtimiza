@@ -79,6 +79,8 @@ namespace OtimizaPC.App.ViewModels
         public bool Success { get; set; }
         public string Summary { get; set; }
         public DateTime Timestamp { get; set; }
+        public IReadOnlyList<VerificationStep> VerificationSteps { get; set; } = new List<VerificationStep>();
+        public string VerificationText => Success ? "Verificado" : "Verificação pendente";
     }
 
     /// <summary>ViewModel de um EventFix individual, com seu próprio comando e progresso.</summary>
@@ -158,6 +160,7 @@ namespace OtimizaPC.App.ViewModels
         Corrigiveis,
         Hardware,
         Informativos,
+        Resolvidos,
     }
 
     /// <summary>Ordenação da aba Erros do sistema.</summary>
@@ -177,6 +180,9 @@ namespace OtimizaPC.App.ViewModels
         private readonly Action _notifyOthers;
 
         [ObservableProperty]
+        private bool _isResolved;
+
+        [ObservableProperty]
         private bool _isFixRunning;
 
         [ObservableProperty]
@@ -185,6 +191,7 @@ namespace OtimizaPC.App.ViewModels
         public EventItemViewModel(EventSummary summary, IDialogService dialogs, Func<bool> isAnyRunning, Action notifyOthers)
         {
             Summary = summary;
+            IsResolved = EventResolutionStore.IsResolved(summary);
             _dialogs = dialogs;
             _isAnyRunning = isAnyRunning;
             _notifyOthers = notifyOthers;
@@ -226,6 +233,9 @@ namespace OtimizaPC.App.ViewModels
             + (Summary.Count > 1 ? $" · primeira em {Summary.First:dd/MM HH:mm}" : string.Empty);
         public string Message => Summary.Message ?? "(sem descrição)";
         public string GuidanceText => Diagnosis.Guidance;
+        public string ResolvedLabel => IsResolved && EventResolutionStore.Get(Summary) != null
+            ? "Corrigido em " + EventResolutionStore.Get(Summary).FixedAt.ToString("dd/MM HH:mm") : null;
+        public string HistoryNote => "O histórico do Windows não é apagado; só mostramos como erro se ocorrer de novo";
 
         public bool IsFixable => HasFixes;
         public bool IsHardware => Diagnosis.Classification == EventDiagnosisClass.Hardware;
@@ -279,12 +289,20 @@ namespace OtimizaPC.App.ViewModels
                     line => dispatcher.BeginInvoke(new Action(() => fixItem.AppendLine(line))),
                     localCts.Token, fixItem.NeedsConfirmation);
 
+                var fixedAt = DateTime.Now;
+                var verification = EventFixVerification.Verify(Summary, fixItem.Id, result.Success);
+                var verified = result.Success && verification.Success;
+                EventResolutionStore.Record(Summary, fixedAt, verified, result.Summary);
+
                 FixResult = new EventFixResultViewModel
                 {
-                    Success = result.Success,
-                    Summary = result.Summary,
-                    Timestamp = DateTime.Now,
+                    Success = verified,
+                    Summary = verified ? result.Summary : result.Summary + " Verificação não confirmou a correção.",
+                    Timestamp = fixedAt,
+                    VerificationSteps = verification.Steps,
                 };
+                IsResolved = verified;
+                _notifyOthers?.Invoke();
             }
             catch (OperationCanceledException)
             {
@@ -337,6 +355,20 @@ namespace OtimizaPC.App.ViewModels
 
         private async Task ReloadAsync()
         {
+            var before = EventResolutionStore.Get(Summary);
+            if (before != null)
+            {
+                var current = await Task.Run(() => EventLogAnalyzer.Analyze(7, CancellationToken.None));
+                var latest = current.FirstOrDefault(x => string.Equals(EventResolutionStore.KeyFor(x), before.Key, StringComparison.OrdinalIgnoreCase));
+                FixResult = new EventFixResultViewModel
+                {
+                    Success = latest == null || latest.Last <= before.FixedAt,
+                    Summary = latest == null || latest.Last <= before.FixedAt
+                        ? "Sem novas ocorrências desde " + before.FixedAt.ToString("HH:mm")
+                        : "Ocorreu de novo às " + latest.Last.ToString("HH:mm") + " (" + latest.Count + " vezes)",
+                    Timestamp = DateTime.Now,
+                };
+            }
             if (ReloadCallback != null)
                 await ReloadCallback();
         }
@@ -480,6 +512,12 @@ namespace OtimizaPC.App.ViewModels
             set { if (value) EventFilter = EventFilter.Informativos; }
         }
 
+        public bool FilterResolvidos
+        {
+            get => EventFilter == EventFilter.Resolvidos;
+            set { if (value) EventFilter = EventFilter.Resolvidos; }
+        }
+
         public bool SortPorGravidade
         {
             get => EventSort == EventSort.PorGravidade;
@@ -510,6 +548,10 @@ namespace OtimizaPC.App.ViewModels
 
         public ObservableCollection<EventItemViewModel> Events { get; } = new ObservableCollection<EventItemViewModel>();
 
+        public int ResolvedCount => _allEvents.Count(e => e.IsResolved);
+
+        public string ResolvedFilterText => "Resolvidos (" + ResolvedCount + ")";
+
         public ObservableCollection<CrashItemViewModel> Crashes { get; } = new ObservableCollection<CrashItemViewModel>();
 
         public ObservableCollection<DeviceProblem> DeviceProblems { get; } = new ObservableCollection<DeviceProblem>();
@@ -535,6 +577,7 @@ namespace OtimizaPC.App.ViewModels
             OnPropertyChanged(nameof(FilterCorrigiveis));
             OnPropertyChanged(nameof(FilterHardware));
             OnPropertyChanged(nameof(FilterInformativos));
+            OnPropertyChanged(nameof(FilterResolvidos));
             ApplyEventsFilter();
         }
 
@@ -705,15 +748,19 @@ namespace OtimizaPC.App.ViewModels
 
         private void UpdateEventsSummary(IReadOnlyList<EventSummary> summary)
         {
-            var totalCount = summary.Sum(s => s.Count);
-            var totalTypes = summary.Count;
-            var fixable = _allEvents.Count(e => e.HasFixes);
-            EventsStatus = summary.Count == 0
-                ? $"Nenhum erro nos últimos {EventDays} dias."
-                : $"{totalCount} erros em {totalTypes} tipos nos últimos {EventDays} dias · {fixable} corrigível(is).";
-            EventsSummaryText = summary.Count == 0
+            var active = _allEvents.Where(e => !e.IsResolved).ToList();
+            var resolved = _allEvents.Count(e => e.IsResolved);
+            OnPropertyChanged(nameof(ResolvedCount));
+            OnPropertyChanged(nameof(ResolvedFilterText));
+            var totalCount = active.Sum(s => s.Summary.Count);
+            var totalTypes = active.Count;
+            var fixable = active.Count(e => e.HasFixes);
+            EventsStatus = active.Count == 0
+                ? $"Nenhum erro ativo nos últimos {EventDays} dias · {resolved} resolvido(s)."
+                : $"{totalCount} erros ativos em {totalTypes} tipos nos últimos {EventDays} dias · {fixable} corrigível(is) · {resolved} resolvido(s).";
+            EventsSummaryText = active.Count == 0
                 ? null
-                : $"{totalCount} erros em {totalTypes} tipos · {fixable} corrigível(is)";
+                : $"{totalCount} erros ativos em {totalTypes} tipos · {fixable} corrigível(is) · {resolved} resolvido(s)";
         }
 
         private void ApplyEventsFilter()
@@ -724,9 +771,11 @@ namespace OtimizaPC.App.ViewModels
                 // Filtro de categoria
                 switch (EventFilter)
                 {
-                    case EventFilter.Corrigiveis when !e.HasFixes: return false;
+                    case EventFilter.Todos when e.IsResolved: return false;
+                    case EventFilter.Corrigiveis when !e.HasFixes || e.IsResolved: return false;
                     case EventFilter.Hardware when !e.IsHardware: return false;
                     case EventFilter.Informativos when !e.IsInformativo: return false;
+                    case EventFilter.Resolvidos when !e.IsResolved: return false;
                 }
 
                 // Busca por texto

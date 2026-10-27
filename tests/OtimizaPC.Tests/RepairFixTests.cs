@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +13,31 @@ namespace OtimizaPC.Tests
 {
     public sealed class RepairFixTests
     {
+        [Fact]
+        public void Resolucao_PersisteEReabreSomenteComOcorrenciaNova()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "nutri-fixed-events-" + Guid.NewGuid().ToString("N") + ".json");
+            try
+            {
+                var fixedAt = new DateTime(2026, 10, 27, 10, 0, 0, DateTimeKind.Local);
+                var oldEvent = Summary("WindowsUpdateClient", 20);
+                oldEvent.Subject = "Windows Update";
+                oldEvent.Last = fixedAt.AddMinutes(-1);
+                EventResolutionStore.Record(path, oldEvent, fixedAt, true, "ok");
+
+                var loaded = Assert.Single(EventResolutionStore.Load(path));
+                Assert.True(EventResolutionStore.IsResolved(oldEvent, loaded));
+
+                var newEvent = Summary("WindowsUpdateClient", 20);
+                newEvent.Subject = oldEvent.Subject;
+                newEvent.Last = fixedAt.AddSeconds(1);
+                Assert.False(EventResolutionStore.IsResolved(newEvent, loaded));
+            }
+            finally
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+        }
         [Fact]
         public void Catalogo_AceitaProviderCaseInsensitiveEAliasesDeDiscoENtfs()
         {

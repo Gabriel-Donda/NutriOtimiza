@@ -287,6 +287,12 @@
                                 IsChecked="{Binding FilterInformativos, Mode=TwoWay}"
                                 Style="{StaticResource {x:Type ToggleButton}}"
                                 Content="Informativos" />
+                            <RadioButton
+                                Margin="0,0,8,0"
+                                GroupName="EventFilter"
+                                IsChecked="{Binding FilterResolvidos, Mode=TwoWay}"
+                                Style="{StaticResource {x:Type ToggleButton}}"
+                                Content="{Binding ResolvedFilterText}" />
                             <ui:TextBox
                                 MinWidth="200"
                                 PlaceholderText="Buscar…"
@@ -347,6 +353,11 @@
                                                 FontSize="12"
                                                 Style="{StaticResource SecondaryText}"
                                                 Text="{Binding Detail}" />
+
+                                            <StackPanel Margin="30,5,0,0" Visibility="{Binding IsResolved, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource StatusOkBrush}" Text="{Binding ResolvedLabel}" />
+                                                <TextBlock FontSize="11" Style="{StaticResource SecondaryText}" Text="{Binding HistoryNote}" TextWrapping="Wrap" />
+                                            </StackPanel>
 
                                             <!-- Texto diagnóstico simples -->
                                             <TextBlock
@@ -497,6 +508,25 @@
                                                                     <TextBlock Text="{Binding Result.Summary}" TextWrapping="Wrap" />
                                                                 </DockPanel>
                                                             </Border>
+                                                            <ItemsControl Margin="0,5,0,0" ItemsSource="{Binding Result.VerificationSteps}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <ui:SymbolIcon FontSize="14" Margin="0,0,5,0" Symbol="{Binding Symbol}">
+                                                                                <ui:SymbolIcon.Style>
+                                                                                    <Style TargetType="ui:SymbolIcon">
+                                                                                        <Setter Property="Foreground" Value="{DynamicResource StatusCriticalBrush}" />
+                                                                                        <Style.Triggers><DataTrigger Binding="{Binding Success}" Value="True"><Setter Property="Foreground" Value="{DynamicResource StatusOkBrush}" /></DataTrigger></Style.Triggers>
+                                                                                    </Style>
+                                                                                </ui:SymbolIcon.Style>
+                                                                            </ui:SymbolIcon>
+                                                                            <TextBlock Text="{Binding Label}">
+                                                                                <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource StatusCriticalBrush}" /><Style.Triggers><DataTrigger Binding="{Binding Success}" Value="True"><Setter Property="Foreground" Value="{DynamicResource StatusOkBrush}" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                                                            </TextBlock>
+                                                                        </StackPanel>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
                                                         </StackPanel>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
