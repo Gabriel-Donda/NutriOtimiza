@@ -33,8 +33,11 @@ namespace OtimizaPC.Core.Settings
 
         [DataMember] public DateTime? LastUpdateCheck { get; set; }
 
-        /// <summary>Transições e efeitos de movimento. O app ainda os desliga sozinho com o Windows sem animações, em acesso remoto ou em PC fraco.</summary>
+        /// <summary>Transições e efeitos de movimento. O app ainda os desliga sozinho com o Windows sem animações, em acesso remoto ou com renderização por software.</summary>
         [DataMember] public bool AnimationsEnabled { get; set; } = true;
+
+        /// <summary>Ignora o bloqueio por renderização por software. Não ignora o Windows sem animações nem o acesso remoto.</summary>
+        [DataMember] public bool ForceAnimations { get; set; }
 
         /// <summary>Identificadores dos componentes de sensores que o usuário recolheu.</summary>
         [DataMember] public List<string> CollapsedSensorGroups { get; set; } = new List<string>();
@@ -54,6 +57,7 @@ namespace OtimizaPC.Core.Settings
             AutoInstallUpdates = true;
             UpdateRepository = string.Empty;
             AnimationsEnabled = true;
+            ForceAnimations = false;
             CollapsedSensorGroups = new List<string>();
             CollapsedHardwareSections = new List<string>();
             CollapsedCleanupGroups = new List<string>();

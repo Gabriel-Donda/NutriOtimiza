@@ -51,6 +51,9 @@ namespace OtimizaPC.App.ViewModels
         private bool _animationsEnabled;
 
         [ObservableProperty]
+        private bool _forceAnimations;
+
+        [ObservableProperty]
         private bool _checkUpdatesOnStartup;
 
         [ObservableProperty]
@@ -92,10 +95,13 @@ namespace OtimizaPC.App.ViewModels
             _suppress = true;
             ThemeIndex = (int)_settings.Theme;
             AnimationsEnabled = _settings.AnimationsEnabled;
+            ForceAnimations = _settings.ForceAnimations;
             CheckUpdatesOnStartup = _settings.CheckUpdatesOnStartup;
             AutoInstallUpdates = _settings.AutoInstallUpdates;
             UpdateRepository = _settings.UpdateRepository;
             _suppress = false;
+            // A capacidade de renderização pode mudar com o app aberto (driver, acesso remoto)
+            MotionService.StateChanged += (_, __) => RefreshAnimationsStatus();
 
             // Reverifica a cada 6 horas com o app aberto
             _updateTimer = new DispatcherTimer { Interval = UpdateCheckInterval };
@@ -134,12 +140,20 @@ namespace OtimizaPC.App.ViewModels
         /// <summary>Avisa a janela principal quando há atualização (para o aviso no topo).</summary>
         public event EventHandler UpdateFound;
 
-        /// <summary>Motivo pelo qual as animações estão desligadas apesar de ligadas aqui (null se estão liberadas).</summary>
-        public string AnimationsNote => AnimationsEnabled ? MotionService.DisabledReason() : null;
+        /// <summary>Estado real das animações: "Animações ativas" ou "Desativadas: motivo".</summary>
+        public string AnimationsStatus => MotionService.StatusText;
+
+        public bool AnimationsActive => MotionService.Enabled;
+
+        private void RefreshAnimationsStatus()
+        {
+            OnPropertyChanged(nameof(AnimationsStatus));
+            OnPropertyChanged(nameof(AnimationsActive));
+        }
 
         public void OnActivated()
         {
-            OnPropertyChanged(nameof(AnimationsNote));
+            RefreshAnimationsStatus();
             SensorSetup.RefreshInstalledState();
             _ = RefreshCleanupStateAsync();
             LoadHistory();
@@ -165,7 +179,16 @@ namespace OtimizaPC.App.ViewModels
             _settings.AnimationsEnabled = value;
             _store.Save(_settings);
             MotionService.Configure(value);
-            OnPropertyChanged(nameof(AnimationsNote));
+            RefreshAnimationsStatus();
+        }
+
+        partial void OnForceAnimationsChanged(bool value)
+        {
+            if (_suppress) return;
+            _settings.ForceAnimations = value;
+            _store.Save(_settings);
+            MotionService.ConfigureForce(value);
+            RefreshAnimationsStatus();
         }
 
         partial void OnCheckUpdatesOnStartupChanged(bool value)

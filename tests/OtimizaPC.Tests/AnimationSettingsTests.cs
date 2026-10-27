@@ -39,5 +39,33 @@ namespace OtimizaPC.Tests
                 Assert.False(store.Load().AnimationsEnabled);
             }
         }
+
+        [Fact]
+        public void ConfiguracaoAntigaSemForcarCarregaDesligado()
+        {
+            using (var temp = new TempFolder())
+            {
+                // settings.json da v1.2.0, antes do campo ForceAnimations
+                var path = Path.Combine(temp.Path, "settings.json");
+                File.WriteAllText(path, "{\"AnimationsEnabled\":true}");
+
+                var settings = new SettingsStore(path).Load();
+
+                Assert.False(settings.ForceAnimations);
+                Assert.True(settings.AnimationsEnabled);
+            }
+        }
+
+        [Fact]
+        public void ForcarAnimacoesSobreviveAoSalvarECarregar()
+        {
+            using (var temp = new TempFolder())
+            {
+                var store = new SettingsStore(Path.Combine(temp.Path, "settings.json"));
+                store.Save(new AppSettings { ForceAnimations = true });
+
+                Assert.True(store.Load().ForceAnimations);
+            }
+        }
     }
 }

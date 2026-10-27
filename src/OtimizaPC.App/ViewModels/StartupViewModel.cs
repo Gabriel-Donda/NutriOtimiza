@@ -44,11 +44,8 @@ namespace OtimizaPC.App.ViewModels
 
         public BitmapSource Icon => IconService.FromExecutable(Entry.ExecutablePath);
 
-        public string ActionText => IsEnabled ? "Desativar" : "Ativar";
-
         partial void OnIsEnabledChanged(bool value)
         {
-            OnPropertyChanged(nameof(ActionText));
             if (_suppress) return;
             try
             {
@@ -64,9 +61,6 @@ namespace OtimizaPC.App.ViewModels
                 _report($"Não foi possível alterar \"{Entry.Name}\": {ex.Message}");
             }
         }
-
-        [RelayCommand]
-        private void ToggleEnabled() { if (CanToggle) IsEnabled = !IsEnabled; }
 
         [RelayCommand]
         private void OpenLocation()

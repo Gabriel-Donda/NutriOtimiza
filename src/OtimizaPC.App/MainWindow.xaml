@@ -102,7 +102,8 @@
         </DataTemplate>
     </ui:FluentWindow.Resources>
 
-    <Grid>
+    <!-- RootContent: fade de abertura da janela (ver MotionService.PlayWindowEnter) -->
+    <Grid x:Name="RootContent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -163,7 +164,10 @@
                         Text="{Binding VersionText}" />
                 </StackPanel>
 
+                <!-- NavArea: lista + indicador do item ativo, que desliza até a tela escolhida -->
+                <Grid x:Name="NavArea">
                 <ListBox
+                    x:Name="NavList"
                     Background="Transparent"
                     BorderThickness="0"
                     FocusVisualStyle="{StaticResource AppFocusVisualStyle}"
@@ -188,6 +192,21 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+                <Canvas ClipToBounds="True" IsHitTestVisible="False">
+                    <Border
+                        x:Name="NavIndicator"
+                        Canvas.Left="3"
+                        Width="3"
+                        Height="20"
+                        Background="{DynamicResource BrandOrangeBrush}"
+                        CornerRadius="1.5"
+                        Opacity="0">
+                        <Border.RenderTransform>
+                            <TranslateTransform x:Name="NavOffset" />
+                        </Border.RenderTransform>
+                    </Border>
+                </Canvas>
+                </Grid>
             </DockPanel>
 
             <!-- Conteúdo da página -->

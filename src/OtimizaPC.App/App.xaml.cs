@@ -48,7 +48,7 @@ namespace OtimizaPC.App
             // O tema é aplicado antes de criar a janela: nenhum frame visível usa o tema padrão.
             var appSettings = settings.Load();
             ThemeService.Apply(appSettings.Theme);
-            MotionService.Initialize(appSettings.AnimationsEnabled);
+            MotionService.Initialize(appSettings.AnimationsEnabled, appSettings.ForceAnimations);
 
             _sensors = new SensorService();
             _ = _sensors.StartAsync();

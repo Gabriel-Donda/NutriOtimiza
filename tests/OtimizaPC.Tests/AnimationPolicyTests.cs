@@ -50,14 +50,31 @@ namespace OtimizaPC.Tests
         }
 
         [Theory]
-        [InlineData(0x10000, 8, true)]   // gráficos abaixo do Tier 2
-        [InlineData(0x20000, 4, false)]  // Tier 2 com quatro núcleos
-        [InlineData(0x20000, 2, true)]   // dois núcleos ou menos
-        [InlineData(0x20000, 1, true)]
-        [InlineData(0x30000, 8, false)]
-        public void PcFracoPeloTierDeRenderizacaoOuNucleos(int renderTier, int processors, bool expected)
+        [InlineData(0x00000, true)]   // renderização por software
+        [InlineData(0x10000, false)]  // Tier 1: aceleração parcial já anima bem
+        [InlineData(0x20000, false)]
+        public void PcFracoSoComRenderizacaoPorSoftware(int renderTier, bool expected)
         {
-            Assert.Equal(expected, AnimationPolicy.IsWeakHardware(renderTier, processors));
+            Assert.Equal(expected, AnimationPolicy.IsWeakHardware(renderTier));
+        }
+
+        [Fact]
+        public void ForcarIgnoraBloqueioDeHardware()
+        {
+            var reason = AnimationPolicy.SystemBlockReason(clientAreaAnimation: true, remoteSession: false, weakHardware: true, forceAnimations: true);
+
+            Assert.Null(reason);
+            Assert.True(AnimationPolicy.IsEnabled(userEnabled: true, systemBlockReason: reason));
+        }
+
+        [Theory]
+        [InlineData(false, false)] // Windows sem animações
+        [InlineData(true, true)]   // acesso remoto
+        public void ForcarNaoIgnoraWindowsNemAcessoRemoto(bool clientAreaAnimation, bool remoteSession)
+        {
+            var reason = AnimationPolicy.SystemBlockReason(clientAreaAnimation, remoteSession, weakHardware: false, forceAnimations: true);
+
+            Assert.NotNull(reason);
         }
 
         [Fact]
@@ -66,7 +83,28 @@ namespace OtimizaPC.Tests
             // Windows com efeitos desligados é o primeiro motivo a aparecer ao usuário
             var reason = AnimationPolicy.SystemBlockReason(clientAreaAnimation: false, remoteSession: true, weakHardware: true);
 
-            Assert.Equal("Desativadas pelo Windows (efeitos de animação)", reason);
+            Assert.Equal("efeitos de animação desligados no Windows", reason);
+        }
+
+        [Fact]
+        public void EstadoMostraAtivasOuMotivo()
+        {
+            Assert.Equal("Animações ativas", AnimationPolicy.StatusText(true, null));
+            Assert.Equal("Desativadas: acesso remoto (área de trabalho remota)",
+                AnimationPolicy.StatusText(true, AnimationPolicy.SystemBlockReason(true, true, false)));
+            Assert.StartsWith("Desativadas:", AnimationPolicy.StatusText(false, null));
+        }
+
+        [Fact]
+        public void LinhaDeLogTrazOsValoresDaDecisao()
+        {
+            var line = AnimationPolicy.LogLine(true, null, 0x20000, 8, clientAreaAnimation: true, remoteSession: false, forceAnimations: false);
+
+            Assert.StartsWith("Animações: ativas", line);
+            Assert.Contains("RenderTier=2", line);
+            Assert.Contains("ProcessorCount=8", line);
+            Assert.Contains("ClientAreaAnimation=True", line);
+            Assert.Contains("Remoto=False", line);
         }
     }
 }

@@ -1,0 +1,142 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Estilo implícito de abas (vale para todo TabControl do app).
+        Usa somente brushes de tema: o destaque laranja vem de AccentFillColorDefaultBrush,
+        aplicado pelo ThemeService com a cor da marca.
+        Tempos seguem Animations.xaml (MotionFastMs = 150 ms, MotionNormalMs = 220 ms).
+    -->
+
+    <Style TargetType="TabControl">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style TargetType="TabItem">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,4,0" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Grid x:Name="PART_Root" Margin="0,0,0,2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Camada de hover: fade suave, por baixo da pílula de seleção -->
+                        <Border x:Name="PART_Hover"
+                                Grid.RowSpan="2"
+                                Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                                CornerRadius="8"
+                                Opacity="0" />
+
+                        <!-- Pílula da aba selecionada (tom da cor de destaque) -->
+                        <Border x:Name="PART_Pill"
+                                Grid.RowSpan="2"
+                                Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                CornerRadius="8"
+                                Opacity="0" />
+
+                        <!-- Contorno de foco de teclado -->
+                        <Border x:Name="PART_Focus"
+                                Grid.RowSpan="2"
+                                BorderBrush="{DynamicResource FocusStrokeBrush}"
+                                BorderThickness="2"
+                                CornerRadius="8"
+                                Opacity="0" />
+
+                        <ContentPresenter x:Name="PART_Content"
+                                          Margin="16,8"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          ContentSource="Header"
+                                          RecognizesAccessKey="True"
+                                          TextElement.Foreground="{TemplateBinding Foreground}" />
+
+                        <!-- Barra inferior curta que cresce ao selecionar -->
+                        <Border x:Name="PART_Bar"
+                                Grid.Row="1"
+                                Width="28"
+                                Height="3"
+                                HorizontalAlignment="Center"
+                                Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                CornerRadius="2"
+                                RenderTransformOrigin="0.5,0.5"
+                                Opacity="0">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="PART_BarScale" ScaleX="0" />
+                            </Border.RenderTransform>
+                        </Border>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="PART_Hover" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.15" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="PART_Hover" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="PART_Content" Property="TextElement.Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                            <Setter TargetName="PART_Content" Property="TextElement.FontWeight" Value="SemiBold" />
+                            <Setter TargetName="PART_Pill" Property="Opacity" Value="0.18" />
+                            <Setter TargetName="PART_Bar" Property="Opacity" Value="1" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="PART_BarScale" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.22">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut" />
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="PART_BarScale" Storyboard.TargetProperty="ScaleX" To="0" Duration="0:0:0.15" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+
+                        <Trigger Property="IsSelected" Value="False">
+                            <Setter TargetName="PART_Bar" Property="Opacity" Value="0" />
+                        </Trigger>
+
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="PART_Focus" Property="Opacity" Value="1" />
+                        </Trigger>
+
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.55" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

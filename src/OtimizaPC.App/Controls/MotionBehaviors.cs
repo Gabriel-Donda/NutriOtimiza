@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Media;
 using OtimizaPC.App.Services;
 
@@ -136,20 +140,37 @@ namespace OtimizaPC.App.Controls
                 bar.Value = to;
                 return;
             }
-            MotionService.Animate(bar, RangeBase.ValueProperty, to, MotionService.Duration("MotionNormalMs", 220));
+            MotionService.Animate(bar, RangeBase.ValueProperty, to, MotionService.Duration("MotionProgressMs", 450));
         }
 
         // ---------- Valor de texto que mudou ----------
 
-        /// <summary>Em um TextBlock: quando o texto muda, ele "acende" de leve (opacidade volta ao normal). Só anima o que está na tela.</summary>
+        /// <summary>
+        /// Em um TextBlock: quando o texto muda, números contam do valor antigo ao novo (ex.: "45 %" → "60 %")
+        /// e textos sem número "acendem" de leve. Na entrada da tela, os números contam a partir de zero
+        /// (<see cref="PlayCountUp"/>). Só anima o que está na tela.
+        /// </summary>
         public static readonly DependencyProperty PulseOnChangeProperty = DependencyProperty.RegisterAttached(
             "PulseOnChange", typeof(bool), typeof(MotionBehaviors), new PropertyMetadata(false, OnPulseOnChangeChanged));
 
-        /// <summary>Intervalo mínimo entre dois pulsos do mesmo texto (ms).</summary>
+        /// <summary>Intervalo mínimo entre duas animações do mesmo texto (ms).</summary>
         private const int PulseIntervalMs = 2000;
 
-        // Último pulso de cada texto. Chave fraca: não segura o TextBlock depois que ele é descartado.
-        private static readonly ConditionalWeakTable<TextBlock, StrongBox<int>> LastPulse = new ConditionalWeakTable<TextBlock, StrongBox<int>>();
+        /// <summary>Máximo de números contando de uma vez na entrada da tela.</summary>
+        private const int MaxCountUps = 16;
+
+        /// <summary>Limite de nós percorridos ao procurar números, para não varrer listas enormes.</summary>
+        private const int CountScanLimit = 800;
+
+        // "45 %", "3,2 GHz", "-12": prefixo sem dígitos, um número e sufixo sem dígitos (evita "1.234,5" e "8 / 16 GB")
+        private static readonly Regex NumberPattern = new Regex(@"^(\D*?)(-?\d+)(?:([.,])(\d+))?(\D*)$", RegexOptions.CultureInvariant);
+
+        // Estado de cada texto. Chave fraca: não segura o TextBlock depois que ele é descartado.
+        private static readonly ConditionalWeakTable<TextBlock, TextState> States = new ConditionalWeakTable<TextBlock, TextState>();
+
+        /// <summary>Valor numérico animado; a cada quadro vira texto no mesmo formato do valor final.</summary>
+        private static readonly DependencyProperty CountValueProperty = DependencyProperty.RegisterAttached(
+            "CountValue", typeof(double), typeof(MotionBehaviors), new PropertyMetadata(0d, OnCountValueChanged));
 
         private static readonly EventHandler TextChangedHandler = OnTextChanged;
         private static readonly RoutedEventHandler TextBlockLoadedHandler = (sender, _) => WatchText((TextBlock)sender);
@@ -181,6 +202,7 @@ namespace OtimizaPC.App.Controls
         // Assina a mudança do texto só enquanto o elemento está carregado, para não segurar o TextBlock depois de descarregado
         private static void WatchText(TextBlock text)
         {
+            StateOf(text).LastText = text.Text;
             TextDescriptor.RemoveValueChanged(text, TextChangedHandler);
             TextDescriptor.AddValueChanged(text, TextChangedHandler);
         }
@@ -189,23 +211,145 @@ namespace OtimizaPC.App.Controls
 
         private static void OnTextChanged(object sender, EventArgs e)
         {
-            if (!(sender is TextBlock text) || !MotionService.Enabled || !MotionService.IsInViewport(text)) return;
+            if (!(sender is TextBlock text)) return;
+            var state = StateOf(text);
+            if (state.Writing) return; // quadro da própria contagem
 
-            // Sensores mudam a cada 1 s: sem limite, o valor piscaria em todo tick. No máximo um pulso por intervalo.
-            var now = Environment.TickCount;
-            if (!LastPulse.TryGetValue(text, out var last))
+            var previous = state.LastText;
+            state.LastText = text.Text;
+            if (!MotionService.Enabled || !MotionService.IsInViewport(text)) return;
+
+            // Valor novo no meio de uma contagem: segue até ele, sem esperar o intervalo
+            if (state.Counting && TryParse(text.Text, out var retarget))
             {
-                last = new StrongBox<int>(now - PulseIntervalMs);
-                LastPulse.Add(text, last);
+                StartCount(text, state, (double)text.GetValue(CountValueProperty), retarget);
+                return;
             }
-            if (now - last.Value < PulseIntervalMs) return;
-            last.Value = now;
+
+            // Sensores mudam a cada 1 s: sem limite, o valor piscaria em todo tick. No máximo uma animação por intervalo.
+            var now = Environment.TickCount;
+            if (now - state.LastPulse < PulseIntervalMs) return;
+            state.LastPulse = now;
+
+            // Número novo: conta do anterior ou, se antes não havia número ("—", "Carregando"), de zero
+            if (TryParse(text.Text, out var to))
+            {
+                var from = TryParse(previous, out var old) ? old.Value : 0;
+                if (from != to.Value) StartCount(text, state, from, to);
+                return;
+            }
 
             var baseOpacity = (double)text.GetAnimationBaseValue(UIElement.OpacityProperty);
-            var from = baseOpacity * Token("MotionPulseFromOpacity", 0.55d);
-            MotionService.Animate(text, UIElement.OpacityProperty, baseOpacity, MotionService.Duration("MotionFastMs", 150), from: from);
+            var start = baseOpacity * Token("MotionPulseFromOpacity", 0.55d);
+            MotionService.Animate(text, UIElement.OpacityProperty, baseOpacity, MotionService.Duration("MotionFastMs", 150), from: start);
         }
 
+        /// <summary>Entrada da tela: os números visíveis marcados com PulseOnChange contam a partir de zero.</summary>
+        public static void PlayCountUp(FrameworkElement root)
+        {
+            if (!MotionService.Enabled || root == null) return;
+            var found = new List<TextBlock>();
+            var scanned = 0;
+            CollectCountable(root, found, ref scanned);
+            foreach (var text in found)
+            {
+                if (!TryParse(text.Text, out var to) || to.Value == 0) continue;
+                var state = StateOf(text);
+                state.LastText = text.Text;
+                state.LastPulse = Environment.TickCount;
+                StartCount(text, state, 0, to);
+            }
+        }
+
+        private static void CollectCountable(DependencyObject node, List<TextBlock> found, ref int scanned)
+        {
+            var count = VisualTreeHelper.GetChildrenCount(node);
+            for (var i = 0; i < count && scanned < CountScanLimit && found.Count < MaxCountUps; i++)
+            {
+                scanned++;
+                var child = VisualTreeHelper.GetChild(node, i);
+                if (!(child is UIElement element) || element.Visibility != Visibility.Visible) continue;
+                if (child is TextBlock text && GetPulseOnChange(text)) { if (MotionService.IsInViewport(text)) found.Add(text); }
+                else CollectCountable(child, found, ref scanned);
+            }
+        }
+
+        private static void StartCount(TextBlock text, TextState state, double from, ParsedNumber to)
+        {
+            state.Format = to;
+            state.Counting = true;
+            MotionService.Animate(text, CountValueProperty, to.Value, MotionService.Duration("MotionCountMs", 600), from: from,
+                completed: () =>
+                {
+                    state.Counting = false;
+                    // Termina exatamente no texto real: o último recebido, e a ligação (se houver) confirma o valor atual
+                    Write(text, state, state.LastText);
+                    BindingOperations.GetBindingExpression(text, TextBlock.TextProperty)?.UpdateTarget();
+                });
+        }
+
+        private static void OnCountValueChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (!(d is TextBlock text) || !States.TryGetValue(text, out var state) || !state.Counting || state.Format == null) return;
+            Write(text, state, state.Format.Render((double)e.NewValue));
+        }
+
+        // SetCurrentValue mantém a ligação do Text: a próxima atualização do ViewModel continua valendo
+        private static void Write(TextBlock text, TextState state, string value)
+        {
+            state.Writing = true;
+            try { text.SetCurrentValue(TextBlock.TextProperty, value); }
+            finally { state.Writing = false; }
+        }
+
+        private static bool TryParse(string text, out ParsedNumber number)
+        {
+            number = null;
+            if (string.IsNullOrEmpty(text) || text.Length > 40) return false;
+            var match = NumberPattern.Match(text);
+            if (!match.Success) return false;
+            var digits = match.Groups[2].Value + (match.Groups[4].Success ? "." + match.Groups[4].Value : string.Empty);
+            if (!double.TryParse(digits, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)) return false;
+            number = new ParsedNumber
+            {
+                Prefix = match.Groups[1].Value,
+                Suffix = match.Groups[5].Value,
+                Separator = match.Groups[3].Success ? match.Groups[3].Value : ",",
+                Decimals = match.Groups[4].Success ? match.Groups[4].Value.Length : 0,
+                Value = value,
+            };
+            return true;
+        }
+
+        private static TextState StateOf(TextBlock text) =>
+            States.GetValue(text, _ => new TextState { LastPulse = Environment.TickCount - PulseIntervalMs });
+
         private static double Token(string key, double fallback) => MotionService.Token(key, fallback);
+
+        private sealed class TextState
+        {
+            public int LastPulse;
+            public string LastText;
+            public bool Writing;
+            public bool Counting;
+            public ParsedNumber Format;
+        }
+
+        /// <summary>Número dentro de um texto, com o formato para escrever os valores intermediários.</summary>
+        private sealed class ParsedNumber
+        {
+            public string Prefix;
+            public string Suffix;
+            public string Separator;
+            public int Decimals;
+            public double Value;
+
+            public string Render(double value)
+            {
+                var number = value.ToString("F" + Decimals, CultureInfo.InvariantCulture);
+                if (Decimals > 0) number = number.Replace(".", Separator);
+                return Prefix + number + Suffix;
+            }
+        }
     }
 }

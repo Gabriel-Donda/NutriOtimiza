@@ -25,23 +25,36 @@
             </DockPanel>
             <TextBlock Style="{StaticResource PageSubtitle}" Text="Remova propaganda e apps que vieram com o Windows ou com o PC e você não usa." TextWrapping="Wrap" />
 
-            <DockPanel Margin="0,0,0,8">
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <ui:Button
-                        Appearance="Transparent"
-                        Command="{Binding SelectRecommendedCommand}"
-                        Content="Recomendados" />
-                    <ui:Button
-                        Appearance="Transparent"
-                        Command="{Binding SelectNoneCommand}"
-                        Content="Nenhum" />
-                </StackPanel>
-                <CheckBox
-                    Content="Remover também para novos usuários deste PC"
-                    IsChecked="{Binding AlsoForNewUsers}"
-                    IsEnabled="{Binding CanRemoveForNewUsers}" />
-            </DockPanel>
-            <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+            <!-- Barra de seleção rápida -->
+            <Border
+                Margin="0,0,0,8"
+                Padding="12,8"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <ui:Button
+                            Margin="8,0,0,0"
+                            Appearance="Transparent"
+                            Command="{Binding SelectRecommendedCommand}"
+                            Content="Recomendados" />
+                        <ui:Button
+                            Margin="8,0,0,0"
+                            Appearance="Transparent"
+                            Command="{Binding SelectNoneCommand}"
+                            Content="Nenhum" />
+                    </StackPanel>
+                    <CheckBox
+                        VerticalAlignment="Center"
+                        Content="Remover também para novos usuários deste PC"
+                        IsChecked="{Binding AlsoForNewUsers}"
+                        IsEnabled="{Binding CanRemoveForNewUsers}" />
+                </DockPanel>
+            </Border>
+
+            <StackPanel Margin="4,0,0,12" Orientation="Horizontal">
                 <ui:ProgressRing
                     Width="16"
                     Height="16"
@@ -53,42 +66,55 @@
         </StackPanel>
 
         <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="0,0,0,28">
+            <StackPanel Margin="0,0,12,28">
                 <!-- Apps removidos pelo OtimizaPC -->
                 <ui:Card
                     Margin="0,0,0,12"
-                    Padding="20,14"
+                    Padding="20,16"
                     HorizontalContentAlignment="Stretch"
                     Visibility="{Binding HasRemoved, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource SectionTitle}" Text="Removidos pelo NutriOtimiza" />
-                        <TextBlock
-                            Margin="0,2,0,8"
-                            Style="{StaticResource SecondaryText}"
-                            Text="Reinstalar usa os arquivos que ainda estão no PC; se não existirem mais, abre a Microsoft Store." />
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="40" Height="40" Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="20">
+                                <ui:SymbolIcon HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="20" Foreground="{DynamicResource StatusOkBrush}" Symbol="Checkmark24" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Text="Removidos pelo NutriOtimiza" />
+                                <TextBlock Style="{StaticResource SecondaryText}" Text="Reinstalar usa os arquivos que ainda estão no PC; se não existirem mais, abre a Microsoft Store." />
+                            </StackPanel>
+                        </Grid>
                         <ItemsControl ItemsSource="{Binding Removed}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <DockPanel Margin="0,6">
-                                        <ui:Button
-                                            Appearance="Secondary"
-                                            Command="{Binding ReinstallCommand}"
-                                            CommandParameter="{Binding}"
-                                            Content="Reinstalar"
-                                            DockPanel.Dock="Right"
-                                            Icon="{ui:SymbolIcon ArrowUndo24}" />
-                                        <Grid>
-                                            <Image Width="32" Height="32" Margin="0,0,10,0" VerticalAlignment="Center" Source="{Binding Icon}" Stretch="Uniform" />
-                                            <ui:SymbolIcon Width="32" Height="32" Margin="0,0,10,0" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="22" Symbol="AppStore24" Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}" />
-                                            <StackPanel Margin="42,0,0,0">
-                                                <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" TextWrapping="Wrap" />
-                                            <TextBlock
-                                                FontSize="12"
-                                                Style="{StaticResource SecondaryText}"
-                                                Text="{Binding Detail}" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </DockPanel>
+                                    <Border Style="{StaticResource TableRow}" Margin="0,2" Padding="8">
+                                        <DockPanel>
+                                            <ui:Button
+                                                Appearance="Secondary"
+                                                Command="{Binding ReinstallCommand}"
+                                                CommandParameter="{Binding}"
+                                                Content="Reinstalar"
+                                                DockPanel.Dock="Right"
+                                                Icon="{ui:SymbolIcon ArrowUndo24}" />
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid Width="32" Height="32" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                    <Image Width="32" Height="32" Source="{Binding Icon}" Stretch="Uniform" />
+                                                    <ui:SymbolIcon Width="32" Height="32" FontSize="22" Symbol="AppStore24" Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}" />
+                                                </Grid>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" TextWrapping="Wrap" />
+                                                    <TextBlock FontSize="12" Style="{StaticResource SecondaryText}" Text="{Binding Detail}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </DockPanel>
+                                    </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -101,57 +127,76 @@
                         <DataTemplate>
                             <ui:Card
                                 Margin="0,0,0,12"
-                                Padding="20,14"
+                                Padding="20,16"
                                 HorizontalContentAlignment="Stretch">
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource SectionTitle}" Text="{Binding Name}" />
-                                    <TextBlock
-                                        Margin="0,2,0,8"
-                                        Style="{StaticResource SecondaryText}"
-                                        Text="{Binding Hint}" />
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="40" Height="40" Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="20">
+                                            <ui:SymbolIcon HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="20" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" Symbol="AppStore24" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Text="{Binding Name}" />
+                                            <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Hint}" />
+                                        </StackPanel>
+                                        <Border Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center" Padding="10,3" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10">
+                                            <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="{Binding Items.Count}" />
+                                        </Border>
+                                    </Grid>
                                     <ItemsControl ItemsSource="{Binding Items}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Style="{StaticResource TableRow}" Margin="0,2">
-                                                <Grid Margin="0,4">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <CheckBox
-                                                        AutomationProperties.Name="{Binding DisplayName}"
-                                                        MinWidth="0"
-                                                        Margin="0,0,8,0"
-                                                        VerticalAlignment="Top"
-                                                        IsChecked="{Binding IsSelected}" />
-                                                    <Grid Grid.Column="1" Width="32" Height="32" Margin="0,0,8,0" HorizontalAlignment="Left" VerticalAlignment="Top"><Image Width="32" Height="32" Source="{Binding Icon}" Stretch="Uniform"/><ui:SymbolIcon Width="32" Height="32" FontSize="22" Symbol="AppStore24" Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}"/></Grid>
-                                                    <StackPanel Grid.Column="1" Margin="40,0,0,0">
-                                                        <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Description}" TextWrapping="Wrap" />
-                                                        <TextBlock
-                                                            FontSize="11"
-                                                            Style="{StaticResource SecondaryText}"
-                                                            Text="{Binding PackageName}" />
-                                                        <StackPanel
-                                                            Orientation="Horizontal"
-                                                            Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}">
-                                                            <ui:SymbolIcon
-                                                                Margin="0,2,6,0"
-                                                                FontSize="14"
-                                                                Foreground="{DynamicResource StatusWarningBrush}"
-                                                                Symbol="Warning24" />
+                                                <Border Style="{StaticResource TableRow}" Margin="0,2" Padding="8">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <CheckBox
+                                                            AutomationProperties.Name="{Binding DisplayName}"
+                                                            MinWidth="0"
+                                                            Margin="0,2,12,0"
+                                                            VerticalAlignment="Top"
+                                                            IsChecked="{Binding IsSelected}" />
+                                                        <Grid Grid.Column="1" Width="32" Height="32" Margin="0,0,12,0" VerticalAlignment="Top">
+                                                            <Image Width="32" Height="32" Source="{Binding Icon}" Stretch="Uniform" />
+                                                            <ui:SymbolIcon Width="32" Height="32" FontSize="22" Symbol="AppStore24" Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}" />
+                                                        </Grid>
+                                                        <StackPanel Grid.Column="2">
+                                                            <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Description}" TextWrapping="Wrap" />
                                                             <TextBlock
+                                                                FontSize="11"
                                                                 Style="{StaticResource SecondaryText}"
-                                                                Text="Será removido" />
+                                                                Text="{Binding PackageName}" />
+                                                            <StackPanel
+                                                                Margin="0,4,0,0"
+                                                                Orientation="Horizontal"
+                                                                Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}">
+                                                                <ui:SymbolIcon
+                                                                    Margin="0,1,6,0"
+                                                                    FontSize="14"
+                                                                    Foreground="{DynamicResource StatusWarningBrush}"
+                                                                    Symbol="Warning24" />
+                                                                <TextBlock
+                                                                    FontSize="12"
+                                                                    Foreground="{DynamicResource StatusWarningBrush}"
+                                                                    Text="Será removido" />
+                                                            </StackPanel>
+                                                            <TextBlock
+                                                                Margin="0,4,0,0"
+                                                                FontSize="12"
+                                                                Foreground="{DynamicResource StatusCriticalBrush}"
+                                                                Text="{Binding StatusText}"
+                                                                TextWrapping="Wrap"
+                                                                Visibility="{Binding StatusText, Converter={StaticResource NullToCollapsed}}" />
                                                         </StackPanel>
-                                                        <TextBlock
-                                                            FontSize="12"
-                                                            Foreground="{DynamicResource StatusCriticalBrush}"
-                                                            Text="{Binding StatusText}"
-                                                            TextWrapping="Wrap"
-                                                            Visibility="{Binding StatusText, Converter={StaticResource NullToCollapsed}}" />
-                                            </StackPanel>
-                                                </Grid>
+                                                    </Grid>
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -161,7 +206,43 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <ui:Card Margin="0,0,0,12" Padding="24" HorizontalContentAlignment="Stretch" Visibility="{Binding HasItems, Converter={StaticResource InverseBoolToVisibility}}"><StackPanel><TextBlock Style="{StaticResource SectionTitle}" Text="Nenhum app disponível"/><TextBlock Margin="0,6,0,0" Style="{StaticResource SecondaryText}" Text="Não há apps pré-instalados elegíveis para remoção neste momento." TextWrapping="Wrap"/></StackPanel></ui:Card>
+
+                <!-- Estado vazio -->
+                <ui:Card
+                    Margin="0,0,0,12"
+                    Padding="32"
+                    HorizontalContentAlignment="Center"
+                    Visibility="{Binding HasItems, Converter={StaticResource InverseBoolToVisibility}}">
+                    <StackPanel HorizontalAlignment="Center" MaxWidth="420">
+                        <Border
+                            Width="56"
+                            Height="56"
+                            HorizontalAlignment="Center"
+                            Background="{DynamicResource ControlFillColorDefaultBrush}"
+                            CornerRadius="28">
+                            <ui:SymbolIcon
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="26"
+                                Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                                Symbol="Apps24" />
+                        </Border>
+                        <TextBlock
+                            Margin="0,16,0,0"
+                            HorizontalAlignment="Center"
+                            FontSize="17"
+                            FontWeight="SemiBold"
+                            Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                            Text="Nenhum app disponível"
+                            TextAlignment="Center" />
+                        <TextBlock
+                            Margin="0,6,0,0"
+                            HorizontalAlignment="Center"
+                            Style="{StaticResource SecondaryText}"
+                            Text="Não há apps pré-instalados elegíveis para remoção neste momento."
+                            TextAlignment="Center" />
+                    </StackPanel>
+                </ui:Card>
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

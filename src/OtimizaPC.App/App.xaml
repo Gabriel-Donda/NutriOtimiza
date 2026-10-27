@@ -13,6 +13,7 @@
                 <ui:ControlsDictionary />
                 <!-- Durações e curvas das animações (ver Services/MotionService.cs) -->
                 <ResourceDictionary Source="Resources/Animations.xaml" />
+                <ResourceDictionary Source="Resources/Tabs.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Tokens de layout: use estes valores nas Views para manter ritmo visual. -->

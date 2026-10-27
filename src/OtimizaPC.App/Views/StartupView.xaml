@@ -52,15 +52,14 @@
                                     </StackPanel>
 
                                     <WrapPanel Grid.Row="1" Grid.Column="1" Margin="0,12,0,0" VerticalAlignment="Center">
-                                        <Border Margin="0,0,12,0" Padding="8,4" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6" VerticalAlignment="Center">
+                                        <Border Margin="0,0,16,0" Padding="8,4" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6" VerticalAlignment="Center">
                                             <Grid>
                                                 <TextBlock FontSize="12" Foreground="{DynamicResource StatusOkBrush}" Text="Ativo — inicia com o Windows" Visibility="{Binding IsEnabled, Converter={StaticResource BoolToVisibility}}" />
                                                 <TextBlock FontSize="12" Style="{StaticResource SecondaryText}" Text="Pendente — não inicia automaticamente" Visibility="{Binding IsEnabled, Converter={StaticResource InverseBoolToVisibility}}" />
                                             </Grid>
                                         </Border>
-                                        <ui:Button Margin="0,0,8,0" Padding="6" VerticalAlignment="Center" Appearance="Transparent" AutomationProperties.Name="Abrir local do arquivo" Command="{Binding OpenLocationCommand}" Icon="{ui:SymbolIcon FolderOpen24}" ToolTip="Abrir local do arquivo" />
-                                        <ui:Button MinWidth="96" Margin="0,0,8,0" VerticalAlignment="Center" Appearance="Secondary" Command="{Binding ToggleEnabledCommand}" Content="{Binding ActionText}" IsEnabled="{Binding CanToggle}" />
-                                        <ui:ToggleSwitch Margin="0,0,4,0" VerticalAlignment="Center" IsChecked="{Binding IsEnabled}" IsEnabled="{Binding CanToggle}" />
+                                        <ui:Button Margin="0,0,16,0" Padding="6" VerticalAlignment="Center" Appearance="Transparent" AutomationProperties.Name="Abrir local do arquivo" Command="{Binding OpenLocationCommand}" Icon="{ui:SymbolIcon FolderOpen24}" ToolTip="Abrir local do arquivo" />
+                                        <ui:ToggleSwitch VerticalAlignment="Center" AutomationProperties.Name="Ativar na inicialização" IsChecked="{Binding IsEnabled}" IsEnabled="{Binding CanToggle}" ToolTip="Ativar/Desativar na inicialização" />
                                     </WrapPanel>
                                 </Grid>
                             </ui:Card>

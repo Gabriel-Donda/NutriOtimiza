@@ -5,27 +5,34 @@
 
     <!--
         Tokens de movimento do app. O MotionService lê estes valores; quando as animações
-        estão desligadas (preferência, Windows, RDP ou PC fraco) nada é animado.
-        Mantenha as durações entre 150 e 300 ms para o app continuar rápido.
+        estão desligadas (preferência, Windows, acesso remoto ou renderização por software) nada é animado.
+        Nada aqui bloqueia o uso: a tela nova aceita clique e teclado desde o primeiro quadro.
     -->
 
     <!-- Durações (ms) -->
     <sys:Int32 x:Key="MotionFastMs">150</sys:Int32>
     <sys:Int32 x:Key="MotionNormalMs">220</sys:Int32>
+    <sys:Int32 x:Key="MotionPageMs">280</sys:Int32>
     <sys:Int32 x:Key="MotionSlowMs">300</sys:Int32>
+    <sys:Int32 x:Key="MotionProgressMs">450</sys:Int32>
+    <sys:Int32 x:Key="MotionCountMs">600</sys:Int32>
+    <sys:Int32 x:Key="MotionWindowMs">260</sys:Int32>
 
     <!-- Intervalo entre cards na entrada escalonada (ms) -->
-    <sys:Int32 x:Key="MotionStaggerStepMs">30</sys:Int32>
+    <sys:Int32 x:Key="MotionStaggerStepMs">45</sys:Int32>
 
     <!-- Deslocamentos (px) -->
-    <sys:Double x:Key="MotionPageOffsetPx">8</sys:Double>
-    <sys:Double x:Key="MotionCardOffsetPx">10</sys:Double>
-    <sys:Double x:Key="MotionCardLiftPx">2</sys:Double>
+    <sys:Double x:Key="MotionPageOffsetPx">24</sys:Double>
+    <sys:Double x:Key="MotionCardOffsetPx">16</sys:Double>
+    <sys:Double x:Key="MotionCardLiftPx">3</sys:Double>
     <sys:Double x:Key="MotionButtonLiftPx">1</sys:Double>
 
     <!-- Escala ao pressionar e opacidade inicial de textos que mudaram de valor -->
-    <sys:Double x:Key="MotionPressScale">0.985</sys:Double>
-    <sys:Double x:Key="MotionPulseFromOpacity">0.7</sys:Double>
+    <sys:Double x:Key="MotionPressScale">0.97</sys:Double>
+    <sys:Double x:Key="MotionPulseFromOpacity">0.55</sys:Double>
+
+    <!-- Brilho da borda do card no hover: opacidade (0 a 1) da cor de destaque -->
+    <sys:Double x:Key="MotionCardGlowOpacity">0.85</sys:Double>
 
     <!-- Curva suave de saída: começa rápido e termina devagar -->
     <CubicEase x:Key="MotionEaseOut" EasingMode="EaseOut" />

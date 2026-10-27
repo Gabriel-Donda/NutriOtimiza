@@ -10,7 +10,12 @@
             <TextBlock Style="{StaticResource PageSubtitle}" Text="Preferências, atualizações e histórico de alterações." />
 
             <!-- Aparência -->
-            <TextBlock Margin="0,4,0,8" Style="{StaticResource SectionTitle}" Text="Aparência" />
+            <StackPanel Margin="0,0,0,8" Orientation="Horizontal">
+                <Border Width="32" Height="32" Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="16">
+                    <ui:SymbolIcon HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" Symbol="Color24" />
+                </Border>
+                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Style="{StaticResource SectionTitle}" Text="Aparência" />
+            </StackPanel>
             <ui:Card Style="{StaticResource SettingCard}">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -37,26 +42,56 @@
             </ui:Card>
 
             <ui:Card Style="{StaticResource SettingCard}">
-                <DockPanel>
-                    <ui:ToggleSwitch
-                        AutomationProperties.Name="Animações"
-                        DockPanel.Dock="Right"
-                        IsChecked="{Binding AnimationsEnabled}" />
-                    <StackPanel>
-                        <TextBlock FontWeight="SemiBold" Text="Animações" />
-                        <TextBlock Style="{StaticResource SecondaryText}" Text="Transições e entradas suaves, de até 0,3 s. Desligue se o computador estiver lento." />
-                        <TextBlock
-                            FontSize="12"
-                            Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
-                            Text="{Binding AnimationsNote}"
-                            TextWrapping="Wrap"
-                            Visibility="{Binding AnimationsNote, Converter={StaticResource NullToCollapsed}}" />
-                    </StackPanel>
-                </DockPanel>
+                <StackPanel>
+                    <DockPanel>
+                        <ui:ToggleSwitch
+                            AutomationProperties.Name="Animações"
+                            DockPanel.Dock="Right"
+                            IsChecked="{Binding AnimationsEnabled}" />
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Text="Animações" />
+                            <TextBlock Style="{StaticResource SecondaryText}" Text="Transições e entradas suaves, de até 0,3 s. Desligue se o computador estiver lento." />
+                            <!-- Estado real: "Animações ativas" ou "Desativadas: motivo" -->
+                            <StackPanel Margin="0,6,0,0" AutomationProperties.LiveSetting="Polite" AutomationProperties.Name="{Binding AnimationsStatus}" Orientation="Horizontal">
+                                <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="{DynamicResource StatusWarningBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AnimationsActive}" Value="True">
+                                                    <Setter Property="Fill" Value="{DynamicResource StatusOkBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock FontSize="12" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Text="{Binding AnimationsStatus}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </StackPanel>
+                    </DockPanel>
+                    <Separator Margin="0,12" />
+                    <DockPanel>
+                        <ui:ToggleSwitch
+                            AutomationProperties.HelpText="Ignora o bloqueio por renderização por software. Não ignora o Windows sem animações nem o acesso remoto."
+                            AutomationProperties.Name="Forçar animações"
+                            DockPanel.Dock="Right"
+                            IsChecked="{Binding ForceAnimations}"
+                            IsEnabled="{Binding AnimationsEnabled}" />
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Text="Forçar animações" />
+                            <TextBlock Style="{StaticResource SecondaryText}" Text="Liga mesmo em computador sem aceleração gráfica. Não vale com as animações desligadas no Windows nem em acesso remoto." />
+                        </StackPanel>
+                    </DockPanel>
+                </StackPanel>
             </ui:Card>
 
             <!-- Atualizações -->
-            <TextBlock Margin="0,16,0,8" Style="{StaticResource SectionTitle}" Text="Atualizações" />
+            <StackPanel Margin="0,24,0,8" Orientation="Horizontal">
+                <Border Width="32" Height="32" Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="16">
+                    <ui:SymbolIcon HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" Symbol="ArrowSync24" />
+                </Border>
+                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Style="{StaticResource SectionTitle}" Text="Atualizações" />
+            </StackPanel>
             <ui:Card Style="{StaticResource SettingCard}">
                 <StackPanel>
                     <DockPanel>
@@ -126,7 +161,12 @@
             </ui:Card>
 
             <!-- Automação -->
-            <TextBlock Margin="0,16,0,8" Style="{StaticResource SectionTitle}" Text="Automação" />
+            <StackPanel Margin="0,24,0,8" Orientation="Horizontal">
+                <Border Width="32" Height="32" Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="16">
+                    <ui:SymbolIcon HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" Symbol="Timer24" />
+                </Border>
+                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Style="{StaticResource SectionTitle}" Text="Automação" />
+            </StackPanel>
             <ui:Card Style="{StaticResource SettingCard}">
                 <DockPanel>
                     <ui:ToggleSwitch
@@ -147,7 +187,12 @@
             </ui:Card>
 
             <!-- Sensores -->
-            <TextBlock Margin="0,16,0,8" Style="{StaticResource SectionTitle}" Text="Sensores" />
+            <StackPanel Margin="0,24,0,8" Orientation="Horizontal">
+                <Border Width="32" Height="32" Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="16">
+                    <ui:SymbolIcon HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" Symbol="Gauge24" />
+                </Border>
+                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Style="{StaticResource SectionTitle}" Text="Sensores" />
+            </StackPanel>
             <ui:Card Style="{StaticResource SettingCard}">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Margin="12,0,0,0">
@@ -169,7 +214,7 @@
             </ui:Card>
 
             <!-- Histórico -->
-            <DockPanel Margin="0,16,0,8">
+            <DockPanel Margin="0,24,0,8">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                     <ui:Button
                         Margin="0,0,8,0"
@@ -184,7 +229,12 @@
                         Icon="{ui:SymbolIcon ArrowSync24}"
                         ToolTip="Atualizar" />
                 </StackPanel>
-                <TextBlock Style="{StaticResource SectionTitle}" Text="Histórico de alterações" />
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="32" Height="32" Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="16">
+                        <ui:SymbolIcon HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" Symbol="History24" />
+                    </Border>
+                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Style="{StaticResource SectionTitle}" Text="Histórico de alterações" />
+                </StackPanel>
             </DockPanel>
             <ui:Card Style="{StaticResource SettingCard}">
                 <StackPanel>
@@ -195,7 +245,7 @@
                     <ItemsControl ItemsSource="{Binding History}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,3">
+                                <Border Style="{StaticResource TableRow}" Margin="0,2" Padding="8,6"><Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="130" />
                                         <ColumnDefinition Width="160" />
@@ -204,7 +254,7 @@
                                     <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding When}" />
                                     <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="{Binding Area}" />
                                     <TextBlock Grid.Column="2" Text="{Binding Message}" TextWrapping="Wrap" />
-                                </Grid>
+                                </Grid></Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -212,7 +262,12 @@
             </ui:Card>
 
             <!-- Sobre -->
-            <TextBlock Margin="0,16,0,8" Style="{StaticResource SectionTitle}" Text="Sobre" />
+            <StackPanel Margin="0,24,0,8" Orientation="Horizontal">
+                <Border Width="32" Height="32" Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="16">
+                    <ui:SymbolIcon HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" Symbol="Info24" />
+                </Border>
+                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Style="{StaticResource SectionTitle}" Text="Sobre" />
+            </StackPanel>
             <ui:Card Style="{StaticResource SettingCard}">
                 <StackPanel>
                     <TextBlock FontWeight="SemiBold" Text="{Binding VersionText}" />
