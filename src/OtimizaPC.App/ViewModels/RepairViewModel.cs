@@ -380,11 +380,46 @@ namespace OtimizaPC.App.ViewModels
         }
     }
 
-    public sealed class CrashItemViewModel
+    /// <summary>
+    /// ViewModel de uma ocorrência de tela azul com suporte a correções e rastreamento de resolução.
+    /// Espelha o padrão de <see cref="EventItemViewModel"/> para a aba Erros do sistema.
+    /// </summary>
+    public sealed partial class CrashItemViewModel : ObservableObject
     {
-        public CrashItemViewModel(CrashRecord record)
+        private CancellationTokenSource _cts;
+        private readonly object _fixGate = new object();
+        private readonly IDialogService _dialogs;
+        private readonly Func<bool> _isAnyRunning;
+        private readonly Action _notifyOthers;
+
+        [ObservableProperty]
+        private bool _isResolved;
+
+        [ObservableProperty]
+        private bool _isFixRunning;
+
+        [ObservableProperty]
+        private EventFixResultViewModel _fixResult;
+
+        public CrashItemViewModel(CrashRecord record, IDialogService dialogs, Func<bool> isAnyRunning, Action notifyOthers)
         {
             Record = record;
+            _dialogs = dialogs;
+            _isAnyRunning = isAnyRunning;
+            _notifyOthers = notifyOthers;
+
+            // Verifica resolucao pelo stop code -- uma unica resolucao cobre todas as ocorrencias do mesmo code
+            IsResolved = !string.IsNullOrEmpty(record.Code) && CrashResolutionStore.IsResolved(record.Code);
+
+            // Monta os fix items para este stop code
+            var rawFixes = CrashFixCatalog.For(record.Code);
+            Fixes = rawFixes
+                .Select(f => new CrashFixItemViewModel(f, item => RunFixAsync(item), isAnyRunning))
+                .ToList();
+
+            HasFixes = Fixes.Count > 0;
+
+            CancelFixCommand = new RelayCommand(CancelFix, () => IsFixRunning);
         }
 
         public CrashRecord Record { get; }
@@ -400,6 +435,178 @@ namespace OtimizaPC.App.ViewModels
         public string Detail => Format.Join(" · ",
             string.IsNullOrEmpty(Record.Parameters) ? null : "Parâmetros: " + Record.Parameters,
             Record.DumpFile == null ? null : "Despejo: " + Record.DumpFile);
+
+        public IReadOnlyList<CrashFixItemViewModel> Fixes { get; }
+
+        public bool HasFixes { get; }
+
+        public string ResolvedLabel => IsResolved && CrashResolutionStore.Get(Record.Code) != null
+            ? "Corrigido em " + CrashResolutionStore.Get(Record.Code).FixedAt.ToString("dd/MM HH:mm") : null;
+
+        public IRelayCommand CancelFixCommand { get; }
+
+        private async Task RunFixAsync(CrashFixItemViewModel fixItem, bool fromBatch = false)
+        {
+            lock (_fixGate)
+            {
+                if ((!fromBatch && !fixItem.CanRun) || !fixItem.IsEnabled || IsFixRunning) return;
+                IsFixRunning = true;
+            }
+
+            // Orientacoes (sem execucao automatica) nao entram no fluxo de execucao
+            if (fixItem.Fix.IsGuidanceOnly)
+            {
+                IsFixRunning = false;
+                return;
+            }
+
+            // Confirmacao quando necessario (mesmo padrao da aba Erros do sistema)
+            if (fixItem.NeedsConfirmation)
+            {
+                var msg = fixItem.Description
+                    + $"\n\nRisco: {fixItem.Risk}"
+                    + (fixItem.RequiresRestart ? "\n\nSera preciso reiniciar o computador para concluir." : string.Empty);
+                if (!await _dialogs.ConfirmAsync(fixItem.Fix.Title, msg, "Corrigir"))
+                {
+                    IsFixRunning = false;
+                    return;
+                }
+            }
+
+            var localCts = new CancellationTokenSource();
+            _cts = localCts;
+            FixResult = null;
+            fixItem.IsRunning = true;
+            fixItem.Progress = 0;
+            fixItem.ProgressText = "0%";
+            fixItem.OutputLines.Clear();
+            _notifyOthers?.Invoke();
+
+            var dispatcher = System.Windows.Application.Current.Dispatcher;
+            try
+            {
+                var result = await fixItem.Fix.RunAsync(
+                    line => dispatcher.BeginInvoke(new Action(() => fixItem.AppendLine(line))),
+                    localCts.Token, fixItem.NeedsConfirmation);
+
+                var fixedAt = DateTime.Now;
+                // Registra no store pelo stop code -- cobre TODAS as ocorrencias do mesmo codigo
+                CrashResolutionStore.Record(Record.Code, fixItem.Id, fixedAt, result.Success, result.Summary);
+
+                FixResult = new EventFixResultViewModel
+                {
+                    Success = result.Success,
+                    Summary = result.Success
+                        ? result.Summary
+                        : result.Summary + " Verifique se o problema nao se repete.",
+                    Timestamp = fixedAt,
+                };
+                IsResolved = result.Success;
+                _notifyOthers?.Invoke();
+            }
+            catch (OperationCanceledException)
+            {
+                FixResult = new EventFixResultViewModel { Success = false, Summary = "Interrompido pelo usuario.", Timestamp = DateTime.Now };
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Falha ao executar crash fix '{fixItem.Id}'", ex);
+                FixResult = new EventFixResultViewModel { Success = false, Summary = "Erro: " + ex.Message, Timestamp = DateTime.Now };
+            }
+            finally
+            {
+                fixItem.IsRunning = false;
+                IsFixRunning = false;
+                if (ReferenceEquals(_cts, localCts)) _cts = null;
+                localCts.Dispose();
+                _notifyOthers?.Invoke();
+                CancelFixCommand.NotifyCanExecuteChanged();
+            }
+        }
+
+        private void CancelFix() => _cts?.Cancel();
+
+        partial void OnIsFixRunningChanged(bool value)
+        {
+            CancelFixCommand.NotifyCanExecuteChanged();
+            foreach (var fix in Fixes) fix.NotifyCanRunChanged();
+        }
+    }
+
+    /// <summary>
+    /// ViewModel de um <see cref="CrashFix"/> individual, com seu proprio comando e progresso.
+    /// Espelha o padrao de <see cref="EventFixItemViewModel"/>.
+    /// </summary>
+    public sealed partial class CrashFixItemViewModel : ObservableObject
+    {
+        private readonly CrashFix _fix;
+        private readonly Func<CrashFixItemViewModel, Task> _run;
+        private readonly Func<bool> _isAnyRunning;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanRun))]
+        private bool _isRunning;
+
+        [ObservableProperty]
+        private int _progress;
+
+        [ObservableProperty]
+        private string _progressText = "0%";
+
+        [ObservableProperty]
+        private EventFixResultViewModel _result;
+
+        public CrashFixItemViewModel(CrashFix fix, Func<CrashFixItemViewModel, Task> run, Func<bool> isAnyRunning)
+        {
+            _fix = fix;
+            _run = run;
+            _isAnyRunning = isAnyRunning;
+            IsEnabled = !fix.RequiresAdmin || AppInfo.IsAdministrator;
+            RunCommand = fix.IsGuidanceOnly
+                ? null
+                : new AsyncRelayCommand(() => run(this), () => CanRun);
+        }
+
+        public CrashFix Fix => _fix;
+        public string Id => _fix.Id;
+        public string Title => _fix.IsGuidanceOnly ? _fix.Title : "Corrigir: " + _fix.Title;
+        public string Description => _fix.Description;
+        public string Risk => _fix.Risk;
+        public bool RequiresAdmin => _fix.RequiresAdmin;
+        public bool RequiresRestart => _fix.RequiresRestart;
+        public bool NeedsConfirmation => _fix.NeedsConfirmation;
+        public bool IsEnabled { get; }
+        public bool IsGuidanceOnly => _fix.IsGuidanceOnly;
+        public bool IsLowRisk => _fix.RiskLevel == FixRisk.None || _fix.RiskLevel == FixRisk.Low;
+
+        public bool CanRun => IsEnabled && !_isAnyRunning();
+
+        public string DisabledReason => IsEnabled ? null : "Requer administrador -- execute o aplicativo como administrador para habilitar este reparo.";
+
+        public string ToolTipText => IsEnabled
+            ? $"{_fix.Description}\n\nRisco: {_fix.Risk}" + (_fix.RequiresRestart ? "\n\nRequer reiniciar o computador." : string.Empty)
+            : DisabledReason;
+
+        public ObservableCollection<ConsoleLineViewModel> OutputLines { get; } = new ObservableCollection<ConsoleLineViewModel>();
+
+        public IAsyncRelayCommand RunCommand { get; }
+
+        public void NotifyCanRunChanged() => RunCommand?.NotifyCanExecuteChanged();
+
+        public void AppendLine(OutputLine line)
+        {
+            if (line.ProgressPercent.HasValue)
+            {
+                Progress = Math.Max(0, Math.Min(100, line.ProgressPercent.Value));
+                ProgressText = Progress + "%";
+            }
+            var last = OutputLines.Count > 0 ? OutputLines[OutputLines.Count - 1] : null;
+            var item = new ConsoleLineViewModel(line.Text, line.IsError, line.IsProgress);
+            if (line.IsProgress && last != null && last.IsProgress)
+                OutputLines[OutputLines.Count - 1] = item;
+            else
+                OutputLines.Add(item);
+        }
     }
 
     public sealed class DriverItemViewModel
@@ -435,6 +642,7 @@ namespace OtimizaPC.App.ViewModels
         private bool _devicesLoaded;
         private IReadOnlyList<DriverInfo> _allDrivers = new DriverInfo[0];
         private IReadOnlyList<EventItemViewModel> _allEvents = new List<EventItemViewModel>();
+        private IReadOnlyList<CrashItemViewModel> _allCrashes = new List<CrashItemViewModel>();
 
         [ObservableProperty]
         [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
@@ -864,6 +1072,17 @@ namespace OtimizaPC.App.ViewModels
 
         // ---------- Telas azuis ----------
 
+        private bool IsAnyCrashFixRunning() =>
+            _allCrashes.Any(c => c.IsFixRunning);
+
+        private void NotifyAllCrashFixes()
+        {
+            foreach (var c in _allCrashes)
+                foreach (var fix in c.Fixes)
+                    fix.NotifyCanRunChanged();
+        }
+
+
         [RelayCommand]
         private async Task LoadCrashesAsync()
         {
@@ -872,8 +1091,9 @@ namespace OtimizaPC.App.ViewModels
             try
             {
                 var crashes = await Task.Run(() => CrashAnalyzer.Analyze(CrashDays, CancellationToken.None));
+                _allCrashes = crashes.Select(c => new CrashItemViewModel(c, _dialogs, IsAnyCrashFixRunning, NotifyAllCrashFixes)).ToList();
                 Crashes.Clear();
-                foreach (var crash in crashes) Crashes.Add(new CrashItemViewModel(crash));
+                foreach (var vm in _allCrashes) Crashes.Add(vm);
                 var blue = crashes.Count(c => c.Code != null);
                 CrashesStatus = crashes.Count == 0
                     ? "Nenhuma tela azul ou desligamento inesperado no último ano."
