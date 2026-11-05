@@ -38,9 +38,52 @@ namespace OtimizaPC.Repair.Diagnostics
         public bool IsMicrosoft => Provider != null && Provider.IndexOf("Microsoft", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
+    public sealed class MachineVendorInfo
+    {
+        public string Manufacturer { get; set; }
+        public string Model { get; set; }
+        public string SerialNumber { get; set; }
+        public string SupportUrl { get; set; }
+        public string UpdateToolPath { get; set; }
+        public string DisplayName => Manufacturer + (string.IsNullOrWhiteSpace(Model) ? string.Empty : " — " + Model);
+    }
+
     /// <summary>Dispositivos com erro (ponto de exclamação no Gerenciador de Dispositivos) e lista de drivers.</summary>
     public static class DeviceAnalyzer
     {
+        public static MachineVendorInfo GetMachineVendor()
+        {
+            var system = Wmi.Query("SELECT Manufacturer, Model FROM Win32_ComputerSystem").FirstOrDefault();
+            var product = Wmi.Query("SELECT Vendor, Name, IdentifyingNumber FROM Win32_ComputerSystemProduct").FirstOrDefault();
+            var bios = Wmi.Query("SELECT SerialNumber FROM Win32_BIOS").FirstOrDefault();
+            var raw = system?.Str("Manufacturer") ?? product?.Str("Vendor") ?? string.Empty;
+            var normalized = raw.IndexOf("Dell", StringComparison.OrdinalIgnoreCase) >= 0 ? "Dell"
+                : raw.IndexOf("HP", StringComparison.OrdinalIgnoreCase) >= 0 || raw.IndexOf("Hewlett", StringComparison.OrdinalIgnoreCase) >= 0 ? "HP"
+                : raw.IndexOf("Lenovo", StringComparison.OrdinalIgnoreCase) >= 0 ? "Lenovo"
+                : raw.IndexOf("ASUS", StringComparison.OrdinalIgnoreCase) >= 0 ? "ASUS"
+                : raw.IndexOf("Acer", StringComparison.OrdinalIgnoreCase) >= 0 ? "Acer"
+                : raw.IndexOf("Samsung", StringComparison.OrdinalIgnoreCase) >= 0 ? "Samsung"
+                : raw.IndexOf("Microsoft", StringComparison.OrdinalIgnoreCase) >= 0 ? "Microsoft Surface" : raw.Trim();
+            var serial = bios?.Str("SerialNumber") ?? product?.Str("IdentifyingNumber");
+            var info = new MachineVendorInfo { Manufacturer = string.IsNullOrWhiteSpace(normalized) ? "Fabricante desconhecido" : normalized,
+                Model = system?.Str("Model") ?? product?.Str("Name"), SerialNumber = serial };
+            var encodedSerial = Uri.EscapeDataString(serial ?? string.Empty);
+            switch (normalized)
+            {
+                case "Dell": info.SupportUrl = !string.IsNullOrWhiteSpace(serial) ? "https://www.dell.com/support/home/en-us?app=drivers&q= " .TrimEnd() + encodedSerial : "https://www.dell.com/support/home"; break;
+                case "Lenovo": info.SupportUrl = "https://pcsupport.lenovo.com/us/en/" + encodedSerial + "/downloads"; break;
+                case "HP": info.SupportUrl = "https://support.hp.com/us-en/drivers"; break;
+                case "ASUS": info.SupportUrl = "https://www.asus.com/support/download-center/"; break;
+                case "Acer": info.SupportUrl = "https://www.acer.com/us-en/support/drivers-and-manuals"; break;
+                case "Samsung": info.SupportUrl = "https://www.samsung.com/us/support/downloads/"; break;
+                case "Microsoft Surface": info.SupportUrl = "https://support.microsoft.com/surface"; break;
+            }
+            var candidates = normalized == "Dell" ? new[] { @"C:\\Program Files\\Dell\\CommandUpdate\\dcu-cli.exe", @"C:\\Program Files (x86)\\Dell\\CommandUpdate\\dcu-cli.exe" }
+                : normalized == "Lenovo" ? new[] { @"C:\\Program Files (x86)\\Lenovo\\System Update\\tvsu.exe", @"C:\\Program Files\\Lenovo\\VantageService\\4.1.0.0\\Lenovo.VantageService.exe" }
+                : normalized == "HP" ? new[] { @"C:\\Program Files\\HP\\HPSA\\HPAssistant.exe" } : Array.Empty<string>();
+            info.UpdateToolPath = candidates.FirstOrDefault(System.IO.File.Exists);
+            return info;
+        }
         private static readonly Dictionary<int, string> ErrorCodes = new Dictionary<int, string>
         {
             [1] = "Não está configurado corretamente. Reinstale o driver.",

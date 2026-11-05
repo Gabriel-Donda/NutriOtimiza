@@ -558,6 +558,13 @@ namespace OtimizaPC.App.ViewModels
 
         public ObservableCollection<DriverItemViewModel> Drivers { get; } = new ObservableCollection<DriverItemViewModel>();
 
+        private MachineVendorInfo _machineVendor;
+        public string MachineVendorText => _machineVendor?.DisplayName ?? "Identificando fabricante...";
+        public bool HasVendorSupport => !string.IsNullOrWhiteSpace(_machineVendor?.SupportUrl);
+        public string VendorSupportText => _machineVendor?.Manufacturer == "Dell" || _machineVendor?.Manufacturer == "Lenovo"
+            ? "Drivers para esta máquina" : "Suporte genérico do fabricante";
+        public string VendorUpdateText => string.IsNullOrWhiteSpace(_machineVendor?.UpdateToolPath) ? "Ferramenta oficial não detectada" : "Abrir ferramenta oficial";
+
         public bool HasResult => !string.IsNullOrEmpty(ResultText);
 
         partial void OnResultTextChanged(string value) => OnPropertyChanged(nameof(HasResult));
@@ -903,6 +910,8 @@ namespace OtimizaPC.App.ViewModels
             try
             {
                 var (problems, drivers) = await Task.Run(() => (DeviceAnalyzer.ListProblems(), DeviceAnalyzer.ListDrivers()));
+                _machineVendor = await Task.Run(DeviceAnalyzer.GetMachineVendor);
+                OnPropertyChanged(nameof(MachineVendorText)); OnPropertyChanged(nameof(HasVendorSupport)); OnPropertyChanged(nameof(VendorUpdateText)); OnPropertyChanged(nameof(VendorSupportText));
                 DeviceProblems.Clear();
                 foreach (var problem in problems) DeviceProblems.Add(problem);
                 _allDrivers = drivers;
@@ -929,5 +938,19 @@ namespace OtimizaPC.App.ViewModels
 
         [RelayCommand]
         private void OpenDeviceManager() => OpenShortcut(Shortcuts.First(s => s.Command == "devmgmt.msc"));
+
+        [RelayCommand]
+        private void OpenVendorSupport()
+        {
+            var url = _machineVendor?.SupportUrl;
+            if (!string.IsNullOrWhiteSpace(url)) Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+
+        [RelayCommand]
+        private void OpenVendorUpdateTool()
+        {
+            var path = _machineVendor?.UpdateToolPath;
+            if (!string.IsNullOrWhiteSpace(path)) Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
     }
 }
