@@ -69,6 +69,10 @@ Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Run]
+; Instala o driver PawnIO automaticamente durante o setup (best-effort, sem bloquear se falhar)
+; Flags: runhidden waituntilterminated - roda oculto e espera terminar, mas não mostra UI ao usuário
+Filename: "{app}\{#AppExe}"; Parameters: "/install-pawnio"; Flags: runhidden waituntilterminated; StatusMsg: "Instalando driver de sensores PawnIO..."
+
 ; Também roda após atualização silenciosa, reabrindo o app
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall shellexec; Check: ShouldLaunchApp
 
