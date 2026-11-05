@@ -561,6 +561,8 @@ namespace OtimizaPC.App.ViewModels
         private MachineVendorInfo _machineVendor;
         public string MachineVendorText => _machineVendor?.DisplayName ?? "Identificando fabricante...";
         public bool HasVendorSupport => !string.IsNullOrWhiteSpace(_machineVendor?.SupportUrl);
+        public string VendorSupportText => _machineVendor?.Manufacturer == "Dell" || _machineVendor?.Manufacturer == "Lenovo"
+            ? "Drivers para esta máquina" : "Suporte genérico do fabricante";
         public string VendorUpdateText => string.IsNullOrWhiteSpace(_machineVendor?.UpdateToolPath) ? "Ferramenta oficial não detectada" : "Abrir ferramenta oficial";
 
         public bool HasResult => !string.IsNullOrEmpty(ResultText);
@@ -909,7 +911,7 @@ namespace OtimizaPC.App.ViewModels
             {
                 var (problems, drivers) = await Task.Run(() => (DeviceAnalyzer.ListProblems(), DeviceAnalyzer.ListDrivers()));
                 _machineVendor = await Task.Run(DeviceAnalyzer.GetMachineVendor);
-                OnPropertyChanged(nameof(MachineVendorText)); OnPropertyChanged(nameof(HasVendorSupport)); OnPropertyChanged(nameof(VendorUpdateText));
+                OnPropertyChanged(nameof(MachineVendorText)); OnPropertyChanged(nameof(HasVendorSupport)); OnPropertyChanged(nameof(VendorUpdateText)); OnPropertyChanged(nameof(VendorSupportText));
                 DeviceProblems.Clear();
                 foreach (var problem in problems) DeviceProblems.Add(problem);
                 _allDrivers = drivers;
