@@ -632,37 +632,211 @@
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding Crashes}">
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate>
+                                <DataTemplate DataType="{x:Type vm:CrashItemViewModel}">
                                     <ui:Card
                                         Style="{StaticResource RepairCard}"
                                         Margin="0,0,0,8"
                                         Padding="16,10"
                                         HorizontalContentAlignment="Stretch">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <ui:SymbolIcon
-                                                Foreground="{Binding Status, Converter={StaticResource StatusToBrush}}"
-                                                Style="{StaticResource StatusIcon}"
-                                                Symbol="{Binding Status, Converter={StaticResource StatusToSymbol}}" />
-                                            <StackPanel Grid.Column="1">
-                                                <TextBlock FontWeight="SemiBold" Text="{Binding Title}" />
-                                                <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Explanation}" />
-                                                <TextBox
-                                                    FontSize="11"
-                                                    Style="{StaticResource SelectableText}"
-                                                    Text="{Binding Detail, Mode=OneWay}"
-                                                    Visibility="{Binding Detail, Converter={StaticResource NullToCollapsed}}" />
-                                            </StackPanel>
-                                            <TextBlock
-                                                Grid.Column="2"
-                                                Margin="12,0,0,0"
-                                                Style="{StaticResource SecondaryText}"
-                                                Text="{Binding When}" />
-                                        </Grid>
+                                        <StackPanel>
+                                            <!-- Cabecalho: icone, titulo, quando -->
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <ui:SymbolIcon
+                                                    Foreground="{Binding Status, Converter={StaticResource StatusToBrush}}"
+                                                    Style="{StaticResource StatusIcon}"
+                                                    Symbol="{Binding Status, Converter={StaticResource StatusToSymbol}}" />
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock FontWeight="SemiBold" Text="{Binding Title}" />
+                                                    <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Explanation}" />
+                                                    <TextBox
+                                                        FontSize="11"
+                                                        Style="{StaticResource SelectableText}"
+                                                        Text="{Binding Detail, Mode=OneWay}"
+                                                        Visibility="{Binding Detail, Converter={StaticResource NullToCollapsed}}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Top">
+                                                    <TextBlock
+                                                        Margin="12,0,0,0"
+                                                        Style="{StaticResource SecondaryText}"
+                                                        Text="{Binding When}" />
+                                                    <!-- Badge "Corrigido" -->
+                                                    <Border
+                                                        Margin="12,4,0,0"
+                                                        Padding="6,2"
+                                                        CornerRadius="4"
+                                                        Background="{DynamicResource StatusOkBrush}"
+                                                        Visibility="{Binding IsResolved, Converter={StaticResource BoolToVisibility}}">
+                                                        <TextBlock
+                                                            FontSize="10"
+                                                            FontWeight="SemiBold"
+                                                            Foreground="White"
+                                                            Text="Corrigido" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- Secao de correcoes (visivel quando ha fixes) -->
+                                            <ItemsControl
+                                                Margin="30,8,0,0"
+                                                ItemsSource="{Binding Fixes}"
+                                                Visibility="{Binding HasFixes, Converter={StaticResource BoolToVisibility}}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:CrashFixItemViewModel}">
+                                                        <StackPanel Margin="0,0,0,8">
+
+                                                            <!-- Orientacao pura (IsGuidanceOnly) -->
+                                                            <StackPanel Visibility="{Binding IsGuidanceOnly, Converter={StaticResource BoolToVisibility}}">
+                                                                <TextBlock
+                                                                    FontSize="12"
+                                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                    Text="{Binding Description}"
+                                                                    TextWrapping="Wrap" />
+                                                            </StackPanel>
+
+                                                            <!-- Botao de correcao automatica (nao eh orientacao) -->
+                                                            <DockPanel Visibility="{Binding IsGuidanceOnly, Converter={StaticResource InverseBoolToVisibility}}">
+                                                                <ui:Button
+                                                                    DockPanel.Dock="Left"
+                                                                    Appearance="Secondary"
+                                                                    Command="{Binding RunCommand}"
+                                                                    Content="{Binding Title}"
+                                                                    ToolTip="{Binding ToolTipText}"
+                                                                    IsEnabled="{Binding IsEnabled}"
+                                                                    Margin="0,0,8,0" />
+                                                                <!-- Aviso sem admin -->
+                                                                <TextBlock
+                                                                    VerticalAlignment="Center"
+                                                                    FontSize="11"
+                                                                    Foreground="{DynamicResource StatusWarningBrush}"
+                                                                    Text="Requer administrador"
+                                                                    Visibility="{Binding IsEnabled, Converter={StaticResource InverseBoolToVisibility}}" />
+                                                                <!-- Badge reinicio -->
+                                                                <Border
+                                                                    Style="{StaticResource Badge}"
+                                                                    Background="{DynamicResource StatusWarningBrush}"
+                                                                    Margin="4,0,0,0"
+                                                                    Padding="5,1"
+                                                                    Visibility="{Binding RequiresRestart, Converter={StaticResource BoolToVisibility}}">
+                                                                    <TextBlock FontSize="10" FontWeight="SemiBold" Foreground="White" Text="reinicio" />
+                                                                </Border>
+                                                            </DockPanel>
+
+                                                            <!-- Progresso da execucao -->
+                                                            <StackPanel
+                                                                Margin="0,6,0,0"
+                                                                Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}">
+                                                                <DockPanel Margin="0,0,0,4">
+                                                                    <TextBlock DockPanel.Dock="Right" FontWeight="SemiBold" Text="{Binding ProgressText}" />
+                                                                    <ProgressBar Height="6" Maximum="100" Value="{Binding Progress}" />
+                                                                </DockPanel>
+                                                                <Border
+                                                                    Background="{DynamicResource LogBackgroundBrush}"
+                                                                    CornerRadius="4"
+                                                                    MaxHeight="120">
+                                                                    <ListBox
+                                                                        Padding="6"
+                                                                        Background="Transparent"
+                                                                        BorderThickness="0"
+                                                                        FontFamily="Consolas"
+                                                                        FontSize="11"
+                                                                        ItemsSource="{Binding OutputLines}"
+                                                                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                                                        VirtualizingPanel.IsVirtualizing="True">
+                                                                        <ListBox.ItemContainerStyle>
+                                                                            <Style TargetType="ListBoxItem">
+                                                                                <Setter Property="Padding" Value="0" />
+                                                                                <Setter Property="Margin" Value="0" />
+                                                                                <Setter Property="Focusable" Value="False" />
+                                                                                <Setter Property="Template">
+                                                                                    <Setter.Value>
+                                                                                        <ControlTemplate TargetType="ListBoxItem">
+                                                                                            <ContentPresenter />
+                                                                                        </ControlTemplate>
+                                                                                    </Setter.Value>
+                                                                                </Setter>
+                                                                            </Style>
+                                                                        </ListBox.ItemContainerStyle>
+                                                                        <ListBox.ItemTemplate>
+                                                                            <DataTemplate>
+                                                                                <TextBlock Text="{Binding Text}">
+                                                                                    <TextBlock.Style>
+                                                                                        <Style TargetType="TextBlock">
+                                                                                            <Setter Property="Foreground" Value="{DynamicResource LogForegroundBrush}" />
+                                                                                            <Style.Triggers>
+                                                                                                <DataTrigger Binding="{Binding IsError}" Value="True">
+                                                                                                    <Setter Property="Foreground" Value="{DynamicResource LogErrorForegroundBrush}" />
+                                                                                                </DataTrigger>
+                                                                                            </Style.Triggers>
+                                                                                        </Style>
+                                                                                    </TextBlock.Style>
+                                                                                </TextBlock>
+                                                                            </DataTemplate>
+                                                                        </ListBox.ItemTemplate>
+                                                                    </ListBox>
+                                                                </Border>
+                                                            </StackPanel>
+
+                                                            <!-- Resultado do fix -->
+                                                            <Border
+                                                                Margin="0,6,0,0"
+                                                                Padding="10,6"
+                                                                CornerRadius="5"
+                                                                BorderThickness="1"
+                                                                BorderBrush="{DynamicResource StatusOkBrush}"
+                                                                Visibility="{Binding Result, Converter={StaticResource NullToCollapsed}}">
+                                                                <DockPanel>
+                                                                    <TextBlock
+                                                                        DockPanel.Dock="Right"
+                                                                        Margin="8,0,0,0"
+                                                                        FontSize="11"
+                                                                        Style="{StaticResource SecondaryText}"
+                                                                        Text="{Binding Result.Timestamp, StringFormat='{}{0:HH:mm:ss}'}" />
+                                                                    <TextBlock Text="{Binding Result.Summary}" TextWrapping="Wrap" />
+                                                                </DockPanel>
+                                                            </Border>
+
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
+                                            <!-- Botao Interromper -->
+                                            <DockPanel
+                                                Margin="30,4,0,0"
+                                                Visibility="{Binding IsFixRunning, Converter={StaticResource BoolToVisibility}}">
+                                                <ui:Button
+                                                    DockPanel.Dock="Left"
+                                                    Appearance="Secondary"
+                                                    Command="{Binding CancelFixCommand}"
+                                                    Content="Interromper"
+                                                    Icon="{ui:SymbolIcon Stop24}" />
+                                            </DockPanel>
+
+                                            <!-- Status de resolucao apos fix -->
+                                            <Border
+                                                Margin="30,4,0,0"
+                                                Padding="10,5"
+                                                CornerRadius="5"
+                                                BorderThickness="1"
+                                                BorderBrush="{DynamicResource StatusOkBrush}"
+                                                Visibility="{Binding FixResult, Converter={StaticResource NullToCollapsed}}">
+                                                <DockPanel>
+                                                    <ui:SymbolIcon
+                                                        DockPanel.Dock="Left"
+                                                        Margin="0,0,6,0"
+                                                        FontSize="16"
+                                                        Foreground="{DynamicResource StatusOkBrush}"
+                                                        Symbol="CheckmarkCircle24" />
+                                                    <TextBlock Text="{Binding FixResult.Summary}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                                </DockPanel>
+                                            </Border>
+
+                                        </StackPanel>
                                     </ui:Card>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
