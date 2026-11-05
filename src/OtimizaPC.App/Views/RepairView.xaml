@@ -692,6 +692,12 @@
                             Style="{StaticResource SecondaryText}"
                             Text="{Binding DevicesStatus}" />
                     </DockPanel>
+                    <StackPanel Margin="0,0,0,10" DockPanel.Dock="Top" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="Máquina: " />
+                        <TextBlock VerticalAlignment="Center" Text="{Binding MachineVendorText}" />
+                        <ui:Button Margin="12,0,8,0" Appearance="Secondary" Command="{Binding OpenVendorSupportCommand}" Content="Suporte / drivers do fabricante" IsEnabled="{Binding HasVendorSupport}" />
+                        <ui:Button Appearance="Secondary" Command="{Binding OpenVendorUpdateToolCommand}" Content="{Binding VendorUpdateText}" IsEnabled="{Binding HasVendorSupport}" />
+                    </StackPanel>
 
                     <ItemsControl
                         Margin="0,0,0,8"
