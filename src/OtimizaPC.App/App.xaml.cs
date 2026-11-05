@@ -31,6 +31,14 @@ namespace OtimizaPC.App
             UpdateService.EnableModernTls();
             Log.Info($"Iniciando {AppInfo.Name} v{AppInfo.Version} — {Environment.OSVersion} — 64 bits: {Environment.Is64BitProcess} — admin: {AppInfo.IsAdministrator}");
 
+            // Modo oculto: instala o driver PawnIO durante o setup (chamado pelo Inno Setup)
+            const string InstallPawnIoArg = "/install-pawnio";
+            if (e.Args.Contains(InstallPawnIoArg))
+            {
+                RunInstallPawnIo();
+                return;
+            }
+
             // Modo sem interface, chamado pela tarefa agendada
             if (e.Args.Contains(AutoCleanup.Argument))
             {
@@ -86,6 +94,32 @@ namespace OtimizaPC.App
                 Log.Error("Falha na limpeza automática", ex);
             }
             Shutdown();
+        }
+
+        /// <summary>
+        /// Instala o driver PawnIO sem interface (chamado pelo Inno Setup durante a instalação).
+        /// Sai com código 0 em sucesso, código não-zero em falha.
+        /// </summary>
+        private void RunInstallPawnIo()
+        {
+            int exitCode = 0;
+            try
+            {
+                Log.Info("Instalando PawnIO via argumento de linha de comando /install-pawnio");
+                // InstallAsync já verifica IsInstalled internamente e retorna sem erro se já estiver instalado
+                PawnIo.InstallAsync().GetAwaiter().GetResult();
+                Log.Info("PawnIO instalado com sucesso (ou já presente).");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Falha ao instalar PawnIO durante o setup: " + ex.Message);
+                // Falha silenciosa: o fluxo de runtime em SensorSetupViewModel continua sendo o fallback
+                exitCode = 1;
+            }
+            finally
+            {
+                Environment.Exit(exitCode);
+            }
         }
 
         /// <summary>Se o app já estiver aberto, traz a janela existente para a frente em vez de abrir outra.</summary>
