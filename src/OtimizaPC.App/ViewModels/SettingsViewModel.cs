@@ -413,7 +413,7 @@ namespace OtimizaPC.App.ViewModels
             try
             {
                 if (!File.Exists(Core.History.FilePath)) return;
-                foreach (var line in File.ReadAllLines(Core.History.FilePath).Reverse().Take(HistoryLimit))
+                foreach (var line in Enumerable.Reverse(File.ReadAllLines(Core.History.FilePath)).Take(HistoryLimit))
                 {
                     var parts = line.Split('\t');
                     if (parts.Length < 3) continue;
