@@ -87,6 +87,11 @@ O executável de desenvolvimento fica em `src/OtimizaPC.App/bin/Debug/net48/win-
 - **Debug** roda sem pedir administrador. Temperaturas e itens do sistema ficam indisponíveis.
 - **Release** pede elevação (UAC), necessária para limpeza do sistema, otimizações e reparos.
 
+A CI do GitHub Actions roda em Windows a cada pull request, push na `main` ou execução manual.
+Ela restaura as dependências, compila em Release e executa os testes xUnit.
+Depois, gera os instaladores e ZIPs portáteis x64 e x86 e valida os quatro checksums SHA-256.
+Os pacotes e checksums ficam disponíveis apenas nos artefatos da execução, por 7 dias.
+
 ## Gerar os pacotes de distribuição
 
 Requer também o [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`).
