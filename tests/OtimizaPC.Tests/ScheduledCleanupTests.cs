@@ -29,6 +29,41 @@ namespace OtimizaPC.Tests
                 Assert.Equal(3, ScheduledCleanup.WaitForExitOrThrow(process, 10_000));
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void AlteracaoDoAgendamento_ExigeCodigoZero(bool enable)
+        {
+            ScheduledCleanup.EnsureSchtasksSucceeded(0, enable);
+
+            var error = Assert.Throws<InvalidOperationException>(
+                () => ScheduledCleanup.EnsureSchtasksSucceeded(1, enable));
+            Assert.Contains(enable ? "criar" : "remover", error.Message);
+            Assert.Contains("código 1", error.Message);
+            if (enable)
+                Assert.Contains("Execute o NutriOtimiza como administrador e verifique se o serviço 'Agendador de Tarefas' está em execução.", error.Message);
+        }
+
+        [Theory]
+        [InlineData(0, true, true)]
+        [InlineData(0, false, true)]
+        [InlineData(1, false, true)]
+        [InlineData(1, true, false)]
+        public void Exclusao_AceitaTarefaAusente(int exitCode, bool taskExists, bool success)
+        {
+            Assert.Equal(success, ScheduledCleanup.IsDeleteSuccessful(exitCode, taskExists));
+        }
+
+        [Theory]
+        [InlineData(unchecked((int)0x80070002), true)]
+        [InlineData(unchecked((int)0x80070003), true)]
+        [InlineData(unchecked((int)0x80070005), false)]
+        [InlineData(unchecked((int)0x800706BA), false)]
+        public void Consulta_DistingueTarefaAusenteDeFalha(int hresult, bool missing)
+        {
+            Assert.Equal(missing, ScheduledCleanup.IsMissingTask(hresult));
+        }
+
         [Fact]
         public void Timeout_EncerraProcessoEInformaErroAcionavel()
         {

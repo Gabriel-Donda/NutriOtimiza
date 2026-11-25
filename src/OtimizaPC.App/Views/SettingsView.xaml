@@ -171,8 +171,8 @@
                 <DockPanel>
                     <ui:ToggleSwitch
                         DockPanel.Dock="Right"
-                        IsChecked="{Binding IsCleanupScheduled}"
-                        IsEnabled="{Binding IsAdministrator}" />
+                        IsChecked="{Binding IsCleanupScheduled, Mode=TwoWay}"
+                        IsEnabled="{Binding CanChangeCleanupSchedule}" />
                     <StackPanel>
                         <TextBlock FontWeight="SemiBold" Text="Limpeza automática semanal" />
                         <TextBlock Style="{StaticResource SecondaryText}" Text="Remove temporários e caches seguros em segundo plano, sem abrir janela." />
