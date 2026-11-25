@@ -42,7 +42,7 @@ namespace OtimizaPC.App.ViewModels
         private readonly DispatcherTimer _updateTimer;
         private bool _suppress;
         private bool _installerLaunched;
-        private string _pendingInstaller;
+        private StagedInstaller _pendingInstaller;
 
         [ObservableProperty]
         private int _themeIndex;
@@ -121,8 +121,8 @@ namespace OtimizaPC.App.ViewModels
 
         public bool HasUpdate => AvailableUpdate != null;
 
-        /// <summary>Caminho do instalador já baixado e verificado (null se ainda não há).</summary>
-        public string PendingInstaller
+        /// <summary>Instalador já baixado e verificado (null se ainda não há).</summary>
+        public StagedInstaller PendingInstaller
         {
             get => _pendingInstaller;
             private set
@@ -287,7 +287,10 @@ namespace OtimizaPC.App.ViewModels
         /// <summary>Baixa o instalador sem interromper o usuário; falhas só vão para o log e o status.</summary>
         private async Task DownloadInBackgroundAsync(UpdateInfo update)
         {
-            if (PendingInstaller != null && File.Exists(PendingInstaller)) return;
+            if (PendingInstaller?.Version == update.Version) return;
+
+            UpdateService.DiscardInstaller(PendingInstaller);
+            PendingInstaller = null;
 
             DownloadProgress = 0;
             UpdateStatus = "Baixando…";
@@ -320,7 +323,10 @@ namespace OtimizaPC.App.ViewModels
             }
             catch (Exception ex)
             {
+                PendingInstaller = null;
                 Log.Error("Falha ao instalar a atualização ao fechar", ex);
+                UpdateStatus = "Não foi possível atualizar: " + ex.Message;
+                MessageBox.Show(UpdateStatus, AppInfo.Name, MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -334,12 +340,16 @@ namespace OtimizaPC.App.ViewModels
                     $"Instalar a versão {update.Version.ToString(3)} agora? O {AppInfo.Name} será fechado e reaberto ao final.", "Atualizar"))
                 return;
 
+            if (IsUpdating || AvailableUpdate?.Version != update.Version) return;
+
             IsUpdating = true;
             try
             {
                 var installer = PendingInstaller;
-                if (installer == null || !File.Exists(installer))
+                if (installer?.Version != update.Version)
                 {
+                    UpdateService.DiscardInstaller(installer);
+                    PendingInstaller = null;
                     DownloadProgress = 0;
                     UpdateStatus = "Baixando…";
                     var progress = new Progress<int>(p =>
@@ -353,14 +363,18 @@ namespace OtimizaPC.App.ViewModels
                 UpdateStatus = "Instalando…";
                 _installerLaunched = true;
                 UpdateService.LaunchInstaller(installer, relaunch: true);
-                Application.Current.Shutdown();
             }
             catch (Exception ex)
             {
+                PendingInstaller = null;
+                _installerLaunched = false;
                 Log.Error("Falha ao atualizar", ex);
                 UpdateStatus = "Não foi possível atualizar: " + ex.Message;
                 IsUpdating = false;
+                return;
             }
+
+            Application.Current.Shutdown();
         }
 
         [RelayCommand]
