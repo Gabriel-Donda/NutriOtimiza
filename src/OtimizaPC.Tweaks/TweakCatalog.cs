@@ -33,6 +33,15 @@ namespace OtimizaPC.Tweaks
             return tweak;
         }
 
+        internal static RegistryTweak CreateGamePriority() =>
+            new RegistryTweak("game-priority", "Categoria alta do MMCSS para jogos",
+                "Define a categoria de agendamento Alta para os threads que os aplicativos registram na tarefa Games do agendador multimídia do Windows.",
+                TweakCategories.Gaming)
+            {
+                ClientOnly = true,
+                Changes = { String(HKLM, GamesTask, "Scheduling Category", "High", "Medium") },
+            };
+
         private static IEnumerable<Tweak> All()
         {
             // ---------- Energia e desempenho ----------
@@ -386,18 +395,7 @@ namespace OtimizaPC.Tweaks
                 Changes = { Dword(HKLM, @"SYSTEM\CurrentControlSet\Control\GraphicsDrivers", "HwSchMode", 2, 1) },
             };
 
-            yield return new RegistryTweak("game-priority", "Prioridade de CPU para jogos",
-                "Aumenta a prioridade de jogos no agendador multimídia do Windows. O efeito é pequeno e depende do jogo.",
-                TweakCategories.Gaming)
-            {
-                ClientOnly = true,
-                Changes =
-                {
-                    Dword(HKLM, GamesTask, "Priority", 6, 2),
-                    String(HKLM, GamesTask, "Scheduling Category", "High", "Medium"),
-                    String(HKLM, GamesTask, "SFIO Priority", "High", "Normal"),
-                },
-            };
+            yield return CreateGamePriority();
 
             yield return new RegistryTweak("game-bar-off", "Desativar a Xbox Game Bar",
                 "Impede que o painel da Game Bar abra com o botão do controle ou Win+G e consuma recursos durante o jogo.",
