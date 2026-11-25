@@ -16,56 +16,116 @@ namespace OtimizaPC.Cleaning.Files
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    var file = new FileInfo(path);
-                    if (!file.Exists) continue;
+                    if (string.IsNullOrEmpty(path) || !scan.FileTargets.TryGetValue(path, out var target) ||
+                        !SafePath.TryGetContainedPath(target.Root, path, out var fullPath) ||
+                        !TryGetFile(target.Root, fullPath, target.MinAge, out var file))
+                    {
+                        result.Skipped++;
+                        continue;
+                    }
 
                     var length = file.Length;
                     if ((file.Attributes & FileAttributes.ReadOnly) != 0)
+                    {
                         file.Attributes &= ~FileAttributes.ReadOnly;
+                        if (!TryGetFile(target.Root, fullPath, target.MinAge, out file))
+                        {
+                            result.Skipped++;
+                            continue;
+                        }
+                    }
                     file.Delete();
 
                     result.FreedBytes += length;
                     result.Deleted++;
                 }
-                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is System.Security.SecurityException)
+                catch (FileNotFoundException) { }
+                catch (DirectoryNotFoundException) { }
+                catch (Exception ex) when (SafePath.IsFileSystemError(ex))
                 {
                     result.Skipped++;
                 }
             }
 
             foreach (var root in scan.FolderRoots)
-                RemoveEmptySubfolders(new DirectoryInfo(root));
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!SafePath.IsAllowedRoot(root))
+                {
+                    result.Skipped++;
+                    continue;
+                }
+
+                var fullRoot = Path.GetFullPath(root);
+                RemoveEmptySubfolders(fullRoot, fullRoot, result, cancellationToken);
+            }
 
             return result;
         }
 
-        /// <summary>Remove subpastas vazias (a pasta raiz é mantida). Não entra em links simbólicos.</summary>
-        internal static void RemoveEmptySubfolders(DirectoryInfo root)
+        private static bool TryGetFile(string root, string path, TimeSpan minAge, out FileInfo file)
         {
-            DirectoryInfo[] subs;
+            file = null;
+            if (!SafePath.TryGetAttributesWithoutReparsePoints(root, path, out var attributes) ||
+                (attributes & FileAttributes.Directory) != 0)
+                return false;
+
+            file = new FileInfo(path);
+            return minAge <= TimeSpan.Zero || SafePath.MeetsMinAge(file.LastWriteTimeUtc, minAge, DateTime.UtcNow);
+        }
+
+        private static bool IsRegularDirectory(string root, string path) =>
+            SafePath.TryGetAttributesWithoutReparsePoints(root, path, out var attributes) &&
+            (attributes & FileAttributes.Directory) != 0;
+
+        /// <summary>Remove subpastas vazias e mantém a pasta raiz.</summary>
+        private static void RemoveEmptySubfolders(string root, string directory, CleanResult result, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var isRoot = string.Equals(root, directory, StringComparison.OrdinalIgnoreCase);
+            string[] subs;
             try
             {
-                if (!root.Exists) return;
-                subs = root.GetDirectories();
+                if (!IsRegularDirectory(root, directory))
+                {
+                    result.Skipped++;
+                    return;
+                }
+                subs = Directory.GetDirectories(directory);
             }
-            catch
+            catch (Exception ex) when (SafePath.IsFileSystemError(ex))
             {
+                result.Skipped++;
                 return;
             }
 
             foreach (var sub in subs)
+                RemoveEmptySubfolders(root, sub, result, cancellationToken);
+
+            if (isRoot) return;
+            cancellationToken.ThrowIfCancellationRequested();
+            try
             {
-                if ((sub.Attributes & FileAttributes.ReparsePoint) != 0) continue;
-                RemoveEmptySubfolders(sub);
-                try
+                if (!IsRegularDirectory(root, directory))
                 {
-                    // Delete sem recursão: só funciona se a pasta estiver realmente vazia
-                    sub.Delete(false);
+                    result.Skipped++;
+                    return;
                 }
-                catch
-                {
-                    // Pasta ainda tem conteúdo, está em uso ou sem permissão
-                }
+            }
+            catch (Exception ex) when (SafePath.IsFileSystemError(ex))
+            {
+                result.Skipped++;
+                return;
+            }
+
+            try
+            {
+                // Sem recursão: a exclusão só funciona se a pasta estiver vazia.
+                Directory.Delete(directory, false);
+            }
+            catch (Exception ex) when (SafePath.IsFileSystemError(ex))
+            {
+                // Pasta ainda tem conteúdo, está em uso ou sem permissão.
             }
         }
     }

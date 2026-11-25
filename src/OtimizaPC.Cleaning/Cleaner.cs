@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading;
+using OtimizaPC.Cleaning.Files;
 
 namespace OtimizaPC.Cleaning
 {
@@ -34,6 +35,9 @@ namespace OtimizaPC.Cleaning
 
         public IReadOnlyCollection<string> Files { get; set; } = new string[0];
 
+        internal IReadOnlyDictionary<string, FileTarget> FileTargets { get; set; } =
+            new Dictionary<string, FileTarget>(System.StringComparer.OrdinalIgnoreCase);
+
         /// <summary>Pastas raiz cujas subpastas vazias podem ser removidas após a limpeza.</summary>
         public IReadOnlyCollection<string> FolderRoots { get; set; } = new string[0];
 
@@ -48,7 +52,7 @@ namespace OtimizaPC.Cleaning
 
         public int Deleted { get; set; }
 
-        /// <summary>Itens não removidos (em uso ou sem permissão).</summary>
+        /// <summary>Itens ignorados na limpeza, inclusive por falha na revalidação.</summary>
         public int Skipped { get; set; }
 
         public string Note { get; set; }

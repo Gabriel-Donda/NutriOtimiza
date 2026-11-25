@@ -219,7 +219,7 @@ namespace OtimizaPC.App.ViewModels
             State = CleanupItemState.Cleaned;
             SizeText = Format.Bytes(result.FreedBytes);
             var text = "Liberado";
-            if (result.Skipped > 0) text += $" · {result.Skipped:N0} em uso foram mantidos";
+            if (result.Skipped > 0) text += $" · {result.Skipped:N0} item(ns) ignorado(s)";
             if (!string.IsNullOrEmpty(result.Note)) text += " · " + result.Note;
             StatusText = text;
             OnPropertyChanged(nameof(SelectedBytes));
@@ -537,7 +537,7 @@ namespace OtimizaPC.App.ViewModels
                         freed += result.FreedBytes;
                         skipped += result.Skipped;
                         completedWeight += item.ProgressWeightBytes;
-                        Log.Info($"Limpeza '{item.Cleaner.Id}': {Format.Bytes(result.FreedBytes)} liberados, {result.Deleted} removidos, {result.Skipped} mantidos");
+                        Log.Info($"Limpeza '{item.Cleaner.Id}': {Format.Bytes(result.FreedBytes)} liberados, {result.Deleted} removidos, {result.Skipped} ignorados");
                     }
                     catch (OperationCanceledException)
                     {
@@ -558,7 +558,7 @@ namespace OtimizaPC.App.ViewModels
 
                 Headline = $"{Format.Bytes(freed)} liberados";
                 StatusMessage = skipped > 0
-                    ? $"{skipped:N0} arquivo(s) em uso foram mantidos. Feche os programas e analise de novo para removê-los."
+                    ? $"{skipped:N0} item(ns) ignorado(s) durante a limpeza."
                     : "Limpeza concluída.";
             }
             finally

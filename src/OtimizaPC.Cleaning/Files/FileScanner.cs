@@ -11,7 +11,7 @@ namespace OtimizaPC.Cleaning.Files
     {
         public static CleanupScan Scan(IEnumerable<FileTarget> targets, CancellationToken cancellationToken)
         {
-            var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var fileTargets = new Dictionary<string, FileTarget>(StringComparer.OrdinalIgnoreCase);
             var roots = new List<string>();
             long bytes = 0;
             var inaccessible = 0;
@@ -26,38 +26,37 @@ namespace OtimizaPC.Cleaning.Files
                     continue;
                 }
 
+                var nowUtc = DateTime.UtcNow;
+                var root = Path.GetFullPath(target.Root);
                 // Arquivo específico (ex.: C:\Windows\MEMORY.DMP): não enumera a pasta, só o arquivo exato
                 if (target.IsSingleFile)
                 {
                     try
                     {
-                        var file = new FileInfo(Path.Combine(target.Root, target.Pattern));
-                        if (!file.Exists) continue;
-                        if ((file.Attributes & FileAttributes.ReparsePoint) != 0)
-                        {
-                            Log.Warn("Alvo de limpeza ignorado por ser um link simbólico: " + target);
+                        if (!SafePath.TryGetContainedPath(root, Path.Combine(root, target.Pattern), out var path) ||
+                            !SafePath.TryGetAttributesWithoutReparsePoints(root, path, out var attributes) ||
+                            (attributes & FileAttributes.Directory) != 0)
                             continue;
-                        }
-                        if (target.MinAge > TimeSpan.Zero && file.LastWriteTimeUtc > DateTime.UtcNow - target.MinAge) continue;
-                        if (files.Add(file.FullName)) bytes += file.Length;
+                        AddFile(new FileInfo(path), target, nowUtc, fileTargets, ref bytes);
                     }
-                    catch (Exception ex) when (ex is UnauthorizedAccessException || ex is IOException || ex is System.Security.SecurityException)
+                    catch (FileNotFoundException) { }
+                    catch (DirectoryNotFoundException) { }
+                    catch (Exception ex) when (SafePath.IsFileSystemError(ex))
                     {
                         Log.Warn($"Alvo de limpeza sem acesso: {target}: {ex.Message}");
                     }
                     continue;
                 }
 
-                var rootInfo = new DirectoryInfo(target.Root);
+                var rootInfo = new DirectoryInfo(root);
                 if (!rootInfo.Exists) continue;
-                if ((rootInfo.Attributes & FileAttributes.ReparsePoint) != 0)
+                if (SafePath.IsReparsePoint(rootInfo.Attributes))
                 {
                     Log.Warn("Alvo de limpeza ignorado por ser um link simbólico: " + target);
                     continue;
                 }
 
-                if (target.RemoveEmptyFolders) roots.Add(target.Root);
-                var cutoff = DateTime.UtcNow - target.MinAge;
+                if (target.RemoveEmptyFolders) roots.Add(root);
                 var pending = new Stack<DirectoryInfo>();
                 pending.Push(rootInfo);
 
@@ -67,21 +66,23 @@ namespace OtimizaPC.Cleaning.Files
                     var dir = pending.Pop();
                     try
                     {
+                        if (!SafePath.TryGetAttributesWithoutReparsePoints(root, dir.FullName, out _)) continue;
+
                         foreach (var file in dir.EnumerateFiles(target.Pattern))
                         {
-                            if (target.MinAge > TimeSpan.Zero && file.LastWriteTimeUtc > cutoff) continue;
-                            if (files.Add(file.FullName)) bytes += file.Length;
+                            if (SafePath.IsReparsePoint(file.Attributes)) continue;
+                            AddFile(file, target, nowUtc, fileTargets, ref bytes);
                         }
 
                         if (!target.Recursive) continue;
                         foreach (var sub in dir.EnumerateDirectories())
                         {
                             // Nunca seguir junctions/links simbólicos: podem apontar para fora da pasta alvo
-                            if ((sub.Attributes & FileAttributes.ReparsePoint) == 0)
+                            if (!SafePath.IsReparsePoint(sub.Attributes))
                                 pending.Push(sub);
                         }
                     }
-                    catch (Exception ex) when (ex is UnauthorizedAccessException || ex is IOException || ex is System.Security.SecurityException)
+                    catch (Exception ex) when (SafePath.IsFileSystemError(ex))
                     {
                         inaccessible++;
                     }
@@ -91,11 +92,29 @@ namespace OtimizaPC.Cleaning.Files
             return new CleanupScan
             {
                 Bytes = bytes,
-                ItemCount = files.Count,
-                Files = files,
+                ItemCount = fileTargets.Count,
+                Files = fileTargets.Keys,
+                FileTargets = fileTargets,
                 FolderRoots = roots,
                 InaccessibleFolders = inaccessible,
             };
+        }
+
+        private static void AddFile(FileInfo file, FileTarget target, DateTime nowUtc,
+            Dictionary<string, FileTarget> fileTargets, ref long bytes)
+        {
+            if (target.MinAge > TimeSpan.Zero && !SafePath.MeetsMinAge(file.LastWriteTimeUtc, target.MinAge, nowUtc))
+                return;
+
+            if (fileTargets.TryGetValue(file.FullName, out var previous))
+            {
+                // Um dos alvos que aceitou o arquivo basta. Preserve o menor limite de idade.
+                if (target.MinAge < previous.MinAge) fileTargets[file.FullName] = target;
+                return;
+            }
+
+            bytes += file.Length;
+            fileTargets.Add(file.FullName, target);
         }
     }
 }

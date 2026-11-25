@@ -13,15 +13,16 @@ namespace OtimizaPC.Cleaning.Files
     {
         private static readonly Lazy<HashSet<string>> Protected = new Lazy<HashSet<string>>(BuildProtectedList);
 
-        public static bool IsAllowed(FileTarget target)
-        {
-            if (string.IsNullOrWhiteSpace(target?.Root)) return false;
+        public static bool IsAllowed(FileTarget target) =>
+            target != null && IsAllowedRoot(target.Root, target.IsSingleFile);
 
-            var raw = target.Root.Trim();
+        internal static bool IsAllowedRoot(string raw, bool singleFile = false)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return false;
 
             // "C:" e "C:\" são a raiz da unidade. Path.GetFullPath("C:") resolve para o diretório ATUAL
             // da unidade, então precisamos recusar antes de normalizar.
-            if (IsDriveRoot(raw)) return false;
+            if (IsDriveRoot(raw) || !IsAbsoluteLocalPath(raw)) return false;
 
             string full;
             try
@@ -40,7 +41,7 @@ namespace OtimizaPC.Cleaning.Files
             if (IsDriveRoot(full) || full.Length <= 3) return false;
 
             // Pastas protegidas só podem ser alvo de um arquivo específico (ex.: MEMORY.DMP no Windows)
-            if (Protected.Value.Contains(full)) return target.IsSingleFile;
+            if (Protected.Value.Contains(full)) return singleFile;
 
             return true;
         }
@@ -51,7 +52,74 @@ namespace OtimizaPC.Cleaning.Files
             return trimmed.Length == 2 && char.IsLetter(trimmed[0]) && trimmed[1] == ':';
         }
 
-        private static string Normalize(string path) => Path.GetFullPath(path).TrimEnd('\\');
+        private static bool IsAbsoluteLocalPath(string path) =>
+            path.Length >= 3 && char.IsLetter(path[0]) && path[1] == ':' &&
+            (path[2] == Path.DirectorySeparatorChar || path[2] == Path.AltDirectorySeparatorChar);
+
+        private static string Normalize(string path) =>
+            Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        internal static bool TryGetContainedPath(string root, string path, out string fullPath, bool allowRoot = false)
+        {
+            fullPath = null;
+            if (string.IsNullOrEmpty(root) || string.IsNullOrEmpty(path) ||
+                !IsAbsoluteLocalPath(root) || !IsAbsoluteLocalPath(path))
+                return false;
+
+            try
+            {
+                var normalizedRoot = Normalize(root);
+                var prefix = normalizedRoot + Path.DirectorySeparatorChar;
+                var candidate = Path.GetFullPath(path);
+                if (allowRoot && string.Equals(candidate.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                    normalizedRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    fullPath = candidate;
+                    return true;
+                }
+
+                if (!candidate.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
+                    candidate.Length == prefix.Length)
+                    return false;
+
+                fullPath = candidate;
+                return true;
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is NotSupportedException || IsFileSystemError(ex))
+            {
+                return false;
+            }
+        }
+
+        internal static bool IsReparsePoint(FileAttributes attributes) =>
+            (attributes & FileAttributes.ReparsePoint) != 0;
+
+        internal static bool MeetsMinAge(DateTime lastWriteTimeUtc, TimeSpan minAge, DateTime nowUtc) =>
+            minAge <= TimeSpan.Zero || nowUtc - lastWriteTimeUtc >= minAge;
+
+        internal static bool IsFileSystemError(Exception ex) =>
+            ex is IOException || ex is UnauthorizedAccessException || ex is System.Security.SecurityException;
+
+        // Verifica a raiz autorizada e os componentes abaixo dela até o item.
+        internal static bool TryGetAttributesWithoutReparsePoints(string root, string path, out FileAttributes attributes)
+        {
+            attributes = default(FileAttributes);
+            if (!TryGetContainedPath(root, path, out var fullPath, allowRoot: true)) return false;
+
+            var current = Normalize(root);
+            if (IsDriveRoot(current)) current = Path.GetPathRoot(fullPath);
+            attributes = File.GetAttributes(current);
+            if (IsReparsePoint(attributes)) return false;
+
+            foreach (var component in fullPath.Substring(current.Length).Split(
+                new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                current = Path.Combine(current, component);
+                attributes = File.GetAttributes(current);
+                if (IsReparsePoint(attributes)) return false;
+            }
+            return true;
+        }
 
         private static HashSet<string> BuildProtectedList()
         {
