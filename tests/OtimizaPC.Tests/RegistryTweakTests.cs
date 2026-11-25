@@ -188,6 +188,59 @@ namespace OtimizaPC.Tests
         }
 
         [Fact]
+        public void PrioridadeDeJogos_GravaApenasCategoriaDeAgendamento()
+        {
+            var tweak = TweakCatalog.CreateGamePriority();
+
+            var change = Assert.Single(tweak.Changes);
+            Assert.Equal(RegistryHive.LocalMachine, change.Hive);
+            Assert.Equal(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games", change.Path);
+            Assert.Equal("Scheduling Category", change.Name);
+            Assert.Equal(RegistryValueKind.String, change.Kind);
+            Assert.Equal("High", change.Value);
+        }
+
+        [Theory]
+        [InlineData("Normal")]
+        [InlineData(null)]
+        public void PrioridadeDeJogos_ReverterRestauraSnapshotLegado(string originalSfio)
+        {
+            var path = _base + @"\Games";
+            var catalogTweak = TweakCatalog.CreateGamePriority();
+            var current = new RegistryTweak(catalogTweak.Id, catalogTweak.Name, catalogTweak.Description, catalogTweak.Category);
+            // Usa a definição do catálogo em uma chave de teste sem elevação.
+            foreach (var change in catalogTweak.Changes)
+                current.Changes.Add(new RegistryChange(RegistryHive.CurrentUser, path, change.Name, change.Value, change.Kind, change.DefaultValue));
+
+            var legacy = new RegistryTweak("game-priority", current.Name, current.Description, current.Category);
+            legacy.Changes.Add(RegistryChange.Dword(RegistryHive.CurrentUser, path, "Priority", 6, 2));
+            legacy.Changes.Add(RegistryChange.String(RegistryHive.CurrentUser, path, "Scheduling Category", "High", "Medium"));
+            legacy.Changes.Add(RegistryChange.String(RegistryHive.CurrentUser, path, "SFIO Priority", "High", "Normal"));
+
+            Write(path, "Priority", 4, RegistryValueKind.DWord);
+            Write(path, "Scheduling Category", "Low", RegistryValueKind.String);
+            if (originalSfio != null)
+                Write(path, "SFIO Priority", originalSfio, RegistryValueKind.String);
+
+            ApplyWithUndo(legacy);
+            Assert.Equal(TweakState.Applied, current.GetState());
+            var reloaded = new UndoStore(_undoFile).Get(current.Id);
+            Assert.NotNull(reloaded);
+
+            current.Revert(reloaded);
+
+            Assert.Equal(4, Read(path, "Priority"));
+            Assert.Equal("Low", Read(path, "Scheduling Category"));
+            Assert.Equal(originalSfio, Read(path, "SFIO Priority"));
+
+            current.Apply(new UndoRecord(current.Id));
+
+            Assert.Equal("High", Read(path, "Scheduling Category"));
+            Assert.Equal(4, Read(path, "Priority"));
+            Assert.Equal(originalSfio, Read(path, "SFIO Priority"));
+        }
+
+        [Fact]
         public void Catalogo_IdsUnicosEItensValidos()
         {
             var all = TweakCatalog.Create();
