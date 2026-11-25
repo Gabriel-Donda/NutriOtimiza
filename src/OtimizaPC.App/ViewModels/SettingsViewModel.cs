@@ -42,7 +42,7 @@ namespace OtimizaPC.App.ViewModels
         private readonly DispatcherTimer _updateTimer;
         private bool _suppress;
         private bool _installerLaunched;
-        private string _pendingInstaller;
+        private StagedInstaller _pendingInstaller;
 
         [ObservableProperty]
         private int _themeIndex;
@@ -81,7 +81,13 @@ namespace OtimizaPC.App.ViewModels
         private bool _isCleanupScheduled;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanChangeCleanupSchedule))]
+        private bool _isCleanupScheduleBusy;
+
+        [ObservableProperty]
         private string _cleanupStatus;
+
+        public bool CanChangeCleanupSchedule => IsAdministrator && !IsCleanupScheduleBusy;
 
         public SensorSetupViewModel SensorSetup { get; }
 
@@ -115,8 +121,8 @@ namespace OtimizaPC.App.ViewModels
 
         public bool HasUpdate => AvailableUpdate != null;
 
-        /// <summary>Caminho do instalador já baixado e verificado (null se ainda não há).</summary>
-        public string PendingInstaller
+        /// <summary>Instalador já baixado e verificado (null se ainda não há).</summary>
+        public StagedInstaller PendingInstaller
         {
             get => _pendingInstaller;
             private set
@@ -281,7 +287,10 @@ namespace OtimizaPC.App.ViewModels
         /// <summary>Baixa o instalador sem interromper o usuário; falhas só vão para o log e o status.</summary>
         private async Task DownloadInBackgroundAsync(UpdateInfo update)
         {
-            if (PendingInstaller != null && File.Exists(PendingInstaller)) return;
+            if (PendingInstaller?.Version == update.Version) return;
+
+            UpdateService.DiscardInstaller(PendingInstaller);
+            PendingInstaller = null;
 
             DownloadProgress = 0;
             UpdateStatus = "Baixando…";
@@ -314,7 +323,10 @@ namespace OtimizaPC.App.ViewModels
             }
             catch (Exception ex)
             {
+                PendingInstaller = null;
                 Log.Error("Falha ao instalar a atualização ao fechar", ex);
+                UpdateStatus = "Não foi possível atualizar: " + ex.Message;
+                MessageBox.Show(UpdateStatus, AppInfo.Name, MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -328,12 +340,16 @@ namespace OtimizaPC.App.ViewModels
                     $"Instalar a versão {update.Version.ToString(3)} agora? O {AppInfo.Name} será fechado e reaberto ao final.", "Atualizar"))
                 return;
 
+            if (IsUpdating || AvailableUpdate?.Version != update.Version) return;
+
             IsUpdating = true;
             try
             {
                 var installer = PendingInstaller;
-                if (installer == null || !File.Exists(installer))
+                if (installer?.Version != update.Version)
                 {
+                    UpdateService.DiscardInstaller(installer);
+                    PendingInstaller = null;
                     DownloadProgress = 0;
                     UpdateStatus = "Baixando…";
                     var progress = new Progress<int>(p =>
@@ -347,14 +363,18 @@ namespace OtimizaPC.App.ViewModels
                 UpdateStatus = "Instalando…";
                 _installerLaunched = true;
                 UpdateService.LaunchInstaller(installer, relaunch: true);
-                Application.Current.Shutdown();
             }
             catch (Exception ex)
             {
+                PendingInstaller = null;
+                _installerLaunched = false;
                 Log.Error("Falha ao atualizar", ex);
                 UpdateStatus = "Não foi possível atualizar: " + ex.Message;
                 IsUpdating = false;
+                return;
             }
+
+            Application.Current.Shutdown();
         }
 
         [RelayCommand]
@@ -365,41 +385,86 @@ namespace OtimizaPC.App.ViewModels
 
         // ---------- Limpeza automática ----------
 
-        private async Task RefreshCleanupStateAsync()
-        {
-            var enabled = await Task.Run(() => ScheduledCleanup.IsEnabled());
-            _suppress = true;
-            IsCleanupScheduled = enabled;
-            _suppress = false;
-            CleanupStatus = enabled
-                ? "Toda semana (domingo ao meio-dia, ou assim que o PC ligar), só com os itens seguros e recomendados."
-                : IsAdministrator ? null : "Agendar requer executar como administrador.";
-        }
-
         partial void OnIsCleanupScheduledChanged(bool value)
         {
-            if (_suppress) return;
-            _ = ApplyCleanupScheduleAsync(value);
+            if (_suppress || IsCleanupScheduleBusy) return;
+            _ = RefreshCleanupStateAsync(value);
         }
 
-        private async Task ApplyCleanupScheduleAsync(bool enable)
+        private async Task RefreshCleanupStateAsync(bool? requestedState = null)
         {
+            if (IsCleanupScheduleBusy) return;
+
+            var previousState = requestedState.HasValue ? !requestedState.Value : IsCleanupScheduled;
+            IsCleanupScheduleBusy = true;
             try
             {
-                var exe = Process.GetCurrentProcess().MainModule.FileName;
-                await Task.Run(() =>
+                string error = null;
+                if (requestedState.HasValue)
                 {
-                    if (enable) ScheduledCleanup.Enable(exe);
-                    else ScheduledCleanup.Disable();
-                });
+                    try
+                    {
+                        await Task.Run(() =>
+                        {
+                            if (requestedState.Value)
+                            {
+                                using (var process = Process.GetCurrentProcess())
+                                    ScheduledCleanup.Enable(process.MainModule.FileName);
+                            }
+                            else
+                            {
+                                ScheduledCleanup.Disable();
+                            }
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error("Falha ao alterar a limpeza automática", ex);
+                        error = requestedState.Value
+                            ? "Não foi possível ativar a limpeza automática."
+                            : "Não foi possível desativar a limpeza automática.";
+                    }
+                }
+
+                bool enabled;
+                try
+                {
+                    enabled = await Task.Run(() => ScheduledCleanup.IsEnabled());
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Falha ao consultar a limpeza automática", ex);
+                    SetCleanupScheduleState(previousState);
+                    CleanupStatus = (error == null ? "" : error + " ") + "Não foi possível confirmar o estado do agendamento.";
+                    return;
+                }
+
+                SetCleanupScheduleState(enabled);
+                if (requestedState.HasValue && enabled != requestedState.Value && error == null)
+                    error = "O Agendador não confirmou a alteração.";
+
+                CleanupStatus = error ?? (enabled
+                    ? "Domingo ao meio-dia, com o usuário conectado. Se o horário for perdido, o Agendador pode executar a limpeza mais tarde."
+                    : IsAdministrator ? null : "Agendar requer executar como administrador.");
             }
-            catch (Exception ex)
+            finally
             {
-                Log.Error("Falha ao alterar a limpeza automática", ex);
-                CleanupStatus = ex.Message;
+                IsCleanupScheduleBusy = false;
+                if (requestedState.HasValue) LoadHistory();
             }
-            await RefreshCleanupStateAsync();
-            LoadHistory();
+        }
+
+        private void SetCleanupScheduleState(bool enabled)
+        {
+            _suppress = true;
+            try
+            {
+                IsCleanupScheduled = enabled;
+            }
+            finally
+            {
+                _suppress = false;
+            }
         }
 
         // ---------- Sensores ----------
@@ -413,7 +478,7 @@ namespace OtimizaPC.App.ViewModels
             try
             {
                 if (!File.Exists(Core.History.FilePath)) return;
-                foreach (var line in File.ReadAllLines(Core.History.FilePath).Reverse().Take(HistoryLimit))
+                foreach (var line in Enumerable.Reverse(File.ReadAllLines(Core.History.FilePath)).Take(HistoryLimit))
                 {
                     var parts = line.Split('\t');
                     if (parts.Length < 3) continue;

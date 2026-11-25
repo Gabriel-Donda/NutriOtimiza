@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OtimizaPC.App.Services;
@@ -630,7 +631,6 @@ namespace OtimizaPC.App.ViewModels
 
     public partial class RepairViewModel : ObservableObject, IActivatable
     {
-        private const int MaxConsoleLines = 5000;
         private const int EventDays = 7;
         private const int CrashDays = 365;
 
@@ -754,6 +754,8 @@ namespace OtimizaPC.App.ViewModels
 
         public ObservableCollection<ConsoleLineViewModel> ConsoleLines { get; } = new ObservableCollection<ConsoleLineViewModel>();
 
+        public event EventHandler ConsoleBatchApplied;
+
         public ObservableCollection<EventItemViewModel> Events { get; } = new ObservableCollection<EventItemViewModel>();
 
         public int ResolvedCount => _allEvents.Count(e => e.IsResolved);
@@ -833,6 +835,8 @@ namespace OtimizaPC.App.ViewModels
                 if (!await _dialogs.ConfirmAsync(tool.Name, message, "Executar")) return;
             }
 
+            if (IsRunning) return;
+
             _running = tool;
             var localCts = new CancellationTokenSource();
             _cts = localCts;
@@ -842,11 +846,17 @@ namespace OtimizaPC.App.ViewModels
             ProgressText = "0%";
             ConsoleLines.Clear();
             ConsoleTitle = tool.Name;
-            var dispatcher = Application.Current.Dispatcher;
+            var buffer = new ConsoleOutputBuffer();
+            var timer = new DispatcherTimer(DispatcherPriority.Background, Application.Current.Dispatcher)
+            {
+                Interval = TimeSpan.FromMilliseconds(150),
+            };
+            timer.Tick += (sender, args) => FlushConsole(buffer);
 
             try
             {
-                var result = await tool.RunAsync(line => dispatcher.BeginInvoke(new Action(() => AppendLine(line))), localCts.Token);
+                timer.Start();
+                var result = await tool.RunAsync(buffer.Add, localCts.Token);
                 ResultText = result.Summary;
                 ResultStatus = result.Success ? HealthStatus.Ok : HealthStatus.Warning;
             }
@@ -863,6 +873,8 @@ namespace OtimizaPC.App.ViewModels
             }
             finally
             {
+                timer.Stop();
+                FlushConsole(buffer);
                 IsRunning = false;
                 _running = null;
                 if (ReferenceEquals(_cts, localCts)) _cts = null;
@@ -870,21 +882,33 @@ namespace OtimizaPC.App.ViewModels
             }
         }
 
-        private void AppendLine(OutputLine line)
+        private void FlushConsole(ConsoleOutputBuffer buffer)
         {
-            if (line.ProgressPercent.HasValue)
+            var batch = buffer.Drain();
+            if (batch.Count == 0) return;
+
+            int? progress = null;
+            foreach (var line in batch)
             {
-                Progress = Math.Max(0, Math.Min(100, line.ProgressPercent.Value));
+                if (line.ProgressPercent.HasValue) progress = line.ProgressPercent;
+
+                var lastIndex = ConsoleLines.Count - 1;
+                var item = new ConsoleLineViewModel(line.Text, line.IsError, line.IsProgress);
+
+                // Substitui a linha de progresso anterior, inclusive entre lotes.
+                if (line.IsProgress && lastIndex >= 0 && ConsoleLines[lastIndex].IsProgress)
+                    ConsoleLines[lastIndex] = item;
+                else
+                    ConsoleLines.Add(item);
+            }
+
+            ConsoleOutputLimit.TrimOldest(ConsoleLines);
+            if (progress.HasValue)
+            {
+                Progress = Math.Max(0, Math.Min(100, progress.Value));
                 ProgressText = Progress + "%";
             }
-            var last = ConsoleLines.Count > 0 ? ConsoleLines[ConsoleLines.Count - 1] : null;
-            var item = new ConsoleLineViewModel(line.Text, line.IsError, line.IsProgress);
-
-            // Barra de progresso: substitui a linha anterior de progresso em vez de acumular
-            if (line.IsProgress && last != null && last.IsProgress) ConsoleLines[ConsoleLines.Count - 1] = item;
-            else ConsoleLines.Add(item);
-
-            while (ConsoleLines.Count > MaxConsoleLines) ConsoleLines.RemoveAt(0);
+            ConsoleBatchApplied?.Invoke(this, EventArgs.Empty);
         }
 
         private bool CanCancel() => IsRunning;

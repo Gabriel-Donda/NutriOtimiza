@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security;
 using System.Threading;
 using OtimizaPC.Core;
@@ -51,31 +53,64 @@ namespace OtimizaPC.Cleaning
         public const string TaskName = @"NutriOtimiza\LimpezaAutomatica";
         private const int SchtasksTimeoutMs = 30_000;
 
-        public static bool IsEnabled()
+        public static bool IsEnabled() => QueryEnabled() == true;
+
+        // Null indica que a tarefa ou sua pasta está ausente.
+        private static bool? QueryEnabled(bool checkEnabled = true)
         {
+            var service = Activator.CreateInstance(Type.GetTypeFromProgID("Schedule.Service", throwOnError: true));
+            object folder = null;
+            object task = null;
             try
             {
-                return RunSchtasks($"/Query /TN \"{TaskName}\"") == 0;
+                InvokeSchedulerMember(service, "Connect", null, null, null, null);
+                try
+                {
+                    var separator = TaskName.LastIndexOf('\\');
+                    folder = InvokeSchedulerMember(service, "GetFolder", @"\" + TaskName.Substring(0, separator));
+                    task = InvokeSchedulerMember(folder, "GetTask", TaskName.Substring(separator + 1));
+                }
+                catch (TargetInvocationException ex) when (IsMissingTask(ex.InnerException.HResult))
+                {
+                    return null;
+                }
+                catch (Exception ex) when (IsMissingTask(ex.HResult))
+                {
+                    return null;
+                }
+
+                return !checkEnabled || (bool)InvokeSchedulerMember(task, "Enabled");
             }
-            catch
+            finally
             {
-                return false;
+                if (task != null) Marshal.ReleaseComObject(task);
+                if (folder != null) Marshal.ReleaseComObject(folder);
+                Marshal.ReleaseComObject(service);
             }
         }
 
-        /// <summary>Cria (ou substitui) a tarefa: domingo ao meio-dia, ou assim que o PC ligar se estiver desligado nesse horário.</summary>
+        private static object InvokeSchedulerMember(object target, string member, params object[] arguments)
+        {
+            return target.GetType().InvokeMember(member, BindingFlags.InvokeMethod | BindingFlags.GetProperty,
+                null, target, arguments);
+        }
+
+        internal static bool IsMissingTask(int hresult)
+        {
+            // HRESULT de arquivo ou caminho ausente, incluindo a pasta da tarefa.
+            return hresult == unchecked((int)0x80070002) || hresult == unchecked((int)0x80070003);
+        }
+
+        /// <summary>Cria ou substitui a tarefa semanal de domingo ao meio-dia.</summary>
         public static void Enable(string executablePath)
         {
-            var xmlPath = Path.Combine(Path.GetTempPath(), AppInfo.Name + "-tarefa.xml");
-            // O schtasks exige o XML de tarefa em UTF-16
-            File.WriteAllText(xmlPath, BuildTaskXml(executablePath, DateTime.Now), System.Text.Encoding.Unicode);
+            var xmlPath = Path.Combine(Path.GetTempPath(), AppInfo.Name + "-" + Guid.NewGuid().ToString("N") + ".xml");
             try
             {
+                // O schtasks exige o XML de tarefa em UTF-16.
+                File.WriteAllText(xmlPath, BuildTaskXml(executablePath, DateTime.Now), System.Text.Encoding.Unicode);
                 var code = RunSchtasks($"/Create /TN \"{TaskName}\" /XML \"{xmlPath}\" /F");
-                if (code != 0)
-                    throw new InvalidOperationException(
-                        $"O Agendador de Tarefas recusou a criação (código {code}). " +
-                        "Execute o NutriOtimiza como administrador e verifique se o serviço 'Agendador de Tarefas' está em execução.");
+                EnsureSchtasksSucceeded(code, enable: true);
                 History.Record("Limpeza automática", "Agendamento semanal ativado");
             }
             finally
@@ -86,15 +121,32 @@ namespace OtimizaPC.Cleaning
                 }
                 catch
                 {
-                    // Não deixa a falha de limpeza do temporário esconder o erro real do agendamento
+                    // Não deixa a falha de limpeza do temporário esconder o erro real do agendamento.
                 }
             }
         }
 
         public static void Disable()
         {
-            RunSchtasks($"/Delete /TN \"{TaskName}\" /F");
+            var code = RunSchtasks($"/Delete /TN \"{TaskName}\" /F");
+            if (code != 0 && !IsDeleteSuccessful(code, QueryEnabled(checkEnabled: false).HasValue))
+                EnsureSchtasksSucceeded(code, enable: false);
             History.Record("Limpeza automática", "Agendamento desativado");
+        }
+
+        internal static bool IsDeleteSuccessful(int exitCode, bool taskExists) =>
+            exitCode == 0 || !taskExists;
+
+        internal static void EnsureSchtasksSucceeded(int exitCode, bool enable)
+        {
+            if (exitCode == 0) return;
+
+            var operation = enable ? "criar" : "remover";
+            var message = $"Não foi possível {operation} a tarefa de limpeza (código {exitCode}).";
+            if (enable)
+                message += " Execute o NutriOtimiza como administrador e verifique se o serviço 'Agendador de Tarefas' está em execução.";
+
+            throw new InvalidOperationException(message);
         }
 
         internal static string BuildTaskXml(string executablePath, DateTime now)

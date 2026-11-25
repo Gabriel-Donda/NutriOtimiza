@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -20,15 +19,14 @@ namespace OtimizaPC.App.Views
         // Rolagem automática do console para a última linha
         private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (_subscribed != null) _subscribed.ConsoleLines.CollectionChanged -= OnConsoleChanged;
+            if (_subscribed != null) _subscribed.ConsoleBatchApplied -= OnConsoleBatchApplied;
             _subscribed = DataContext as RepairViewModel;
-            if (_subscribed != null) _subscribed.ConsoleLines.CollectionChanged += OnConsoleChanged;
+            if (_subscribed != null) _subscribed.ConsoleBatchApplied += OnConsoleBatchApplied;
         }
 
-        private void OnConsoleChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void OnConsoleBatchApplied(object sender, EventArgs e)
         {
-            // Rolar dentro do próprio CollectionChanged força o ListBox a gerar itens antes de processar a mudança
-            // ("ItemsControl inconsistente com a origem"); por isso a rolagem é adiada
+            // Aguarda o ListBox processar as mudanças do lote antes de rolar.
             if (_scrollPending) return;
             _scrollPending = true;
             Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>

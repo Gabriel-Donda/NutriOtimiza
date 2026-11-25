@@ -7,7 +7,7 @@ namespace OtimizaPC.Repair.Console
 {
     /// <summary>
     /// Decodifica linhas de saída de ferramentas do Windows, que usam codificações diferentes quando redirecionadas:
-    /// sfc = UTF-16, netsh = UTF-8, dism/ipconfig/fsutil = OEM (cp850), chkdsk = ANSI (cp1252).
+    /// sfc = UTF-16, netsh = UTF-8, dism/ipconfig/fsutil = OEM (cp850 em pt-BR), chkdsk = ANSI (cp1252).
     /// A escolha é feita por linha, pela codificação que produz o texto mais plausível.
     /// </summary>
     internal static class OutputDecoding
@@ -42,12 +42,25 @@ namespace OtimizaPC.Repair.Console
             }
             catch (DecoderFallbackException)
             {
-                // Não é UTF-8: decide entre OEM e ANSI
+                // Compara as páginas de código quando a linha não é UTF-8.
             }
 
-            var oem = Oem.Value.GetString(bytes);
+            // Em empate, prefere a página OEM do sistema, seguida de CP850 e ANSI.
+            var best = Oem.Value.GetString(bytes);
+            var bestScore = Score(best);
+            if (Oem.Value.CodePage != 850)
+            {
+                var cp850 = Encoding.GetEncoding(850).GetString(bytes);
+                var cp850Score = Score(cp850);
+                if (cp850Score > bestScore)
+                {
+                    best = cp850;
+                    bestScore = cp850Score;
+                }
+            }
+
             var ansi = Ansi.Value.GetString(bytes);
-            return Score(oem) >= Score(ansi) ? oem : ansi;
+            return Score(ansi) > bestScore ? ansi : best;
         }
 
         /// <summary>Letras acentuadas do português valem mais; símbolos e caracteres de desenho de caixa contam contra.</summary>
