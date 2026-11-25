@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Instalar SDK .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verificar SDK .NET
+        run: dotnet --info
+
+      - name: Restaurar dependências
+        run: dotnet restore OtimizaPC.sln
+
+      - name: Compilar em Release
+        run: dotnet build OtimizaPC.sln --configuration Release --no-restore
+
+      - name: Executar testes xUnit
+        run: dotnet test tests/OtimizaPC.Tests/OtimizaPC.Tests.csproj --configuration Release --no-build
+
+      - name: Preparar Inno Setup 6
+        run: |
+          $isccPaths = @(
+            "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+          )
+          if (-not ($isccPaths | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })) {
+            choco install innosetup --version=6.7.1 --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Falha ao instalar o Inno Setup 6.' }
+          }
+
+      - name: Gerar pacotes x64 e x86
+        run: ./tools/build.ps1 -SkipTests -Arch x64,x86
+
+      - name: Conferir pacotes e SHA-256
+        run: |
+          $version = ([xml](Get-Content -LiteralPath 'Directory.Build.props' -Raw)).Project.PropertyGroup.Version |
+            Where-Object { $_ } | Select-Object -First 1
+          foreach ($arch in @('x64', 'x86')) {
+            $packages = @(
+              "NutriOtimiza-Setup-$version-$arch.exe",
+              "NutriOtimiza-Portable-$version-$arch.zip"
+            )
+            foreach ($name in $packages) {
+              $package = Join-Path 'artifacts' $name
+              $checksum = "$package.sha256"
+              foreach ($file in @($package, $checksum)) {
+                if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+                  throw "Arquivo esperado ausente: $file"
+                }
+              }
+
+              $hash = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
+              $record = (Get-Content -LiteralPath $checksum -Raw) -replace '\r?\n\z', ''
+              if ($record -cne "$hash  $name") {
+                throw "SHA-256 ou formato inválido: $checksum"
+              }
+              Write-Host "SHA-256 conferido: $name"
+            }
+          }
+
+      - name: Enviar pacotes e checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: NutriOtimiza-pacotes
+          path: |
+            artifacts/NutriOtimiza-Setup-*.exe
+            artifacts/NutriOtimiza-Setup-*.exe.sha256
+            artifacts/NutriOtimiza-Portable-*.zip
+            artifacts/NutriOtimiza-Portable-*.zip.sha256
+          if-no-files-found: error
+          retention-days: 7
