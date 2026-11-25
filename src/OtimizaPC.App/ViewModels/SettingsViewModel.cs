@@ -81,7 +81,13 @@ namespace OtimizaPC.App.ViewModels
         private bool _isCleanupScheduled;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanChangeCleanupSchedule))]
+        private bool _isCleanupScheduleBusy;
+
+        [ObservableProperty]
         private string _cleanupStatus;
+
+        public bool CanChangeCleanupSchedule => IsAdministrator && !IsCleanupScheduleBusy;
 
         public SensorSetupViewModel SensorSetup { get; }
 
@@ -379,41 +385,86 @@ namespace OtimizaPC.App.ViewModels
 
         // ---------- Limpeza automática ----------
 
-        private async Task RefreshCleanupStateAsync()
-        {
-            var enabled = await Task.Run(() => ScheduledCleanup.IsEnabled());
-            _suppress = true;
-            IsCleanupScheduled = enabled;
-            _suppress = false;
-            CleanupStatus = enabled
-                ? "Toda semana (domingo ao meio-dia, ou assim que o PC ligar), só com os itens seguros e recomendados."
-                : IsAdministrator ? null : "Agendar requer executar como administrador.";
-        }
-
         partial void OnIsCleanupScheduledChanged(bool value)
         {
-            if (_suppress) return;
-            _ = ApplyCleanupScheduleAsync(value);
+            if (_suppress || IsCleanupScheduleBusy) return;
+            _ = RefreshCleanupStateAsync(value);
         }
 
-        private async Task ApplyCleanupScheduleAsync(bool enable)
+        private async Task RefreshCleanupStateAsync(bool? requestedState = null)
         {
+            if (IsCleanupScheduleBusy) return;
+
+            var previousState = requestedState.HasValue ? !requestedState.Value : IsCleanupScheduled;
+            IsCleanupScheduleBusy = true;
             try
             {
-                var exe = Process.GetCurrentProcess().MainModule.FileName;
-                await Task.Run(() =>
+                string error = null;
+                if (requestedState.HasValue)
                 {
-                    if (enable) ScheduledCleanup.Enable(exe);
-                    else ScheduledCleanup.Disable();
-                });
+                    try
+                    {
+                        await Task.Run(() =>
+                        {
+                            if (requestedState.Value)
+                            {
+                                using (var process = Process.GetCurrentProcess())
+                                    ScheduledCleanup.Enable(process.MainModule.FileName);
+                            }
+                            else
+                            {
+                                ScheduledCleanup.Disable();
+                            }
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error("Falha ao alterar a limpeza automática", ex);
+                        error = requestedState.Value
+                            ? "Não foi possível ativar a limpeza automática."
+                            : "Não foi possível desativar a limpeza automática.";
+                    }
+                }
+
+                bool enabled;
+                try
+                {
+                    enabled = await Task.Run(() => ScheduledCleanup.IsEnabled());
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Falha ao consultar a limpeza automática", ex);
+                    SetCleanupScheduleState(previousState);
+                    CleanupStatus = (error == null ? "" : error + " ") + "Não foi possível confirmar o estado do agendamento.";
+                    return;
+                }
+
+                SetCleanupScheduleState(enabled);
+                if (requestedState.HasValue && enabled != requestedState.Value && error == null)
+                    error = "O Agendador não confirmou a alteração.";
+
+                CleanupStatus = error ?? (enabled
+                    ? "Domingo ao meio-dia, com o usuário conectado. Se o horário for perdido, o Agendador pode executar a limpeza mais tarde."
+                    : IsAdministrator ? null : "Agendar requer executar como administrador.");
             }
-            catch (Exception ex)
+            finally
             {
-                Log.Error("Falha ao alterar a limpeza automática", ex);
-                CleanupStatus = ex.Message;
+                IsCleanupScheduleBusy = false;
+                if (requestedState.HasValue) LoadHistory();
             }
-            await RefreshCleanupStateAsync();
-            LoadHistory();
+        }
+
+        private void SetCleanupScheduleState(bool enabled)
+        {
+            _suppress = true;
+            try
+            {
+                IsCleanupScheduled = enabled;
+            }
+            finally
+            {
+                _suppress = false;
+            }
         }
 
         // ---------- Sensores ----------
@@ -427,7 +478,7 @@ namespace OtimizaPC.App.ViewModels
             try
             {
                 if (!File.Exists(Core.History.FilePath)) return;
-                foreach (var line in File.ReadAllLines(Core.History.FilePath).Reverse().Take(HistoryLimit))
+                foreach (var line in Enumerable.Reverse(File.ReadAllLines(Core.History.FilePath)).Take(HistoryLimit))
                 {
                     var parts = line.Split('\t');
                     if (parts.Length < 3) continue;
