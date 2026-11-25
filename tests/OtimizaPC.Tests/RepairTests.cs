@@ -99,6 +99,45 @@ namespace OtimizaPC.Tests
         }
 
         [Fact]
+        public void ConsoleBuffer_DrainsAllPendingLinesInOrder()
+        {
+            var buffer = new ConsoleOutputBuffer();
+            var lines = Enumerable.Range(0, 5001).Select(i => new OutputLine(i.ToString(), false)).ToArray();
+            foreach (var line in lines) buffer.Add(line);
+
+            Assert.Equal<OutputLine>(lines, buffer.Drain());
+            Assert.Empty(buffer.Drain());
+        }
+
+        [Fact]
+        public void ConsoleBuffer_FinalDrainIncludesLinesReceivedAfterPreviousDrain()
+        {
+            var buffer = new ConsoleOutputBuffer();
+            var first = new OutputLine("Início", false);
+            var last = new OutputLine("Fim", false);
+            buffer.Add(first);
+            var batch = buffer.Drain();
+
+            buffer.Add(last);
+            Assert.Same(last, Assert.Single(buffer.Drain()));
+            Assert.Empty(buffer.Drain());
+            Assert.Same(first, Assert.Single(batch));
+        }
+
+        [Theory]
+        [InlineData(4999, 0)]
+        [InlineData(5000, 0)]
+        [InlineData(5150, 150)]
+        public void ConsoleLimit_KeepsNewestLines(int count, int dropped)
+        {
+            var lines = Enumerable.Range(0, count).ToList();
+
+            ConsoleOutputLimit.TrimOldest(lines);
+
+            Assert.Equal<int>(Enumerable.Range(dropped, count - dropped), lines);
+        }
+
+        [Fact]
         public async Task Processo_TransmiteLinhasECodigoDeSaida()
         {
             var lines = new List<OutputLine>();
