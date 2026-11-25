@@ -16,7 +16,7 @@ namespace OtimizaPC.Tests
             ""tag_name"": ""v1.2.0"", ""body"": ""Novidades"", ""html_url"": ""https://github.com/x/y/releases/tag/v1.2.0"",
             ""draft"": false, ""prerelease"": false,
             ""assets"": [
-                { ""name"": ""NutriOtimiza-Setup-1.2.0-x64.exe"", ""browser_download_url"": ""https://example/x64.exe"" },
+                { ""name"": ""NutriOtimiza-Setup-1.2.0-x64.exe"", ""size"": 123, ""browser_download_url"": ""https://example/x64.exe"" },
                 { ""name"": ""NutriOtimiza-Setup-1.2.0-x64.exe.sha256"", ""browser_download_url"": ""https://example/x64.sha"" },
                 { ""name"": ""NutriOtimiza-Setup-1.2.0-x86.exe"", ""browser_download_url"": ""https://example/x86.exe"" },
                 { ""name"": ""NutriOtimiza-Portable-1.2.0-x64.zip"", ""browser_download_url"": ""https://example/zip"" }
@@ -30,6 +30,7 @@ namespace OtimizaPC.Tests
             Assert.NotNull(update);
             Assert.Equal(new Version(1, 2, 0, 0), update.Version);
             Assert.Equal("https://example/x64.exe", update.InstallerUrl);
+            Assert.Equal((long?)123, update.InstallerSize);
             Assert.Equal("https://example/x64.sha", update.ChecksumUrl);
         }
 
@@ -38,6 +39,7 @@ namespace OtimizaPC.Tests
         {
             var update = UpdateService.ParseRelease(Release, "x86", new Version(1, 0, 0, 0));
             Assert.Equal("https://example/x86.exe", update.InstallerUrl);
+            Assert.Null(update.InstallerSize);
             Assert.Null(update.ChecksumUrl); // o download será recusado
         }
 
@@ -85,6 +87,63 @@ namespace OtimizaPC.Tests
             finally
             {
                 File.Delete(file);
+            }
+        }
+
+        [Theory]
+        [InlineData("NutriOtimiza-Setup-1.2.0-x64.exe", true)]
+        [InlineData("NutriOtimiza-Setup-1.2.0.0-x64.exe", true)]
+        [InlineData("Outro-Setup-1.2.0-x64.exe", false)]
+        [InlineData("NutriOtimiza-Setup-1.2.1-x64.exe", false)]
+        [InlineData("NutriOtimiza-Setup-1.2.0-x86.exe", false)]
+        [InlineData("NutriOtimiza-Setup-1.2.0-arm64.exe", false)]
+        [InlineData("../NutriOtimiza-Setup-1.2.0-x64.exe", false)]
+        public void Instalador_ConfereNomeVersaoEArquitetura(string name, bool valid)
+        {
+            Assert.Equal(valid, UpdateService.IsInstallerNameValid(name, new Version(1, 2, 0, 0), "x64"));
+        }
+
+        [Theory]
+        [InlineData("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", 3, true)]
+        [InlineData("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", null, true)]
+        [InlineData("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", 4, false)]
+        [InlineData("0000000000000000000000000000000000000000000000000000000000000000", 3, false)]
+        public void Instalador_ConfereHashETamanho(string checksum, int? size, bool valid)
+        {
+            using (var stream = new MemoryStream(new byte[] { 97, 98, 99 }))
+            {
+                if (valid)
+                    UpdateService.ValidateInstallerContents(stream, checksum, size);
+                else
+                    Assert.Throws<InvalidOperationException>(() => UpdateService.ValidateInstallerContents(stream, checksum, size));
+            }
+        }
+
+        [Fact]
+        public void Instalador_RecusaArquivoAlteradoDepoisDaVerificacaoELimpaPasta()
+        {
+            var folder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+            var architecture = UpdateService.Architecture;
+            var path = Path.Combine(folder, $"NutriOtimiza-Setup-1.2.0-{architecture}.exe");
+            Directory.CreateDirectory(folder);
+            try
+            {
+                File.WriteAllText(path, "abc");
+                var checksum = UpdateService.ComputeSha256(path);
+                var installer = new StagedInstaller(path, new Version(1, 2, 0), architecture, checksum, 3);
+                using (var stream = UpdateService.OpenInstallerForValidation(path))
+                    UpdateService.ValidateInstallerContents(stream, checksum, 3);
+
+                // Mantém o tamanho para que a alteração seja detectada pelo hash.
+                File.WriteAllText(path, "abd");
+
+                var exception = Assert.Throws<InvalidOperationException>(() => UpdateService.LaunchInstaller(installer, relaunch: false));
+                Assert.Contains("hash publicado", exception.Message);
+                Assert.False(Directory.Exists(folder));
+            }
+            finally
+            {
+                if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
             }
         }
 
