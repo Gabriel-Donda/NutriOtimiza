@@ -27,8 +27,12 @@ namespace OtimizaPC.Tweaks.Uninstall
 
     internal sealed class LeftoverRegistry : ILeftoverRegistry
     {
-        public bool KeyExists(RegistryHive hive, RegistryView view, string path) =>
-            Read(hive, view, path, key => key != null, false);
+        public bool KeyExists(RegistryHive hive, RegistryView view, string path)
+        {
+            using (var root = RegistryKey.OpenBaseKey(hive, view))
+            using (var key = root.OpenSubKey(path, writable: false))
+                return key != null;
+        }
 
         public IEnumerable<string> GetSubKeyNames(RegistryHive hive, RegistryView view, string path) =>
             Read(hive, view, path, key => key?.GetSubKeyNames() ?? Array.Empty<string>(), Array.Empty<string>());

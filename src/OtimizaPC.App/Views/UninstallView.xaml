@@ -38,43 +38,112 @@
                     <StackPanel>
                         <TextBlock FontWeight="SemiBold" Text="{Binding LeftoverSummary}" TextWrapping="Wrap" />
                         <TextBlock Margin="0,4,0,8" Style="{StaticResource SecondaryText}"
-                                   Text="A limpeza das sobras chega na próxima versão" TextWrapping="Wrap" />
+                                   Text="{Binding CleanupWarning}" TextWrapping="Wrap"
+                                   Visibility="{Binding CleanupWarning, Converter={StaticResource NullToCollapsed}}" />
+                        <WrapPanel Margin="0,4,0,8">
+                            <WrapPanel.Style>
+                                <Style TargetType="WrapPanel">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CleanupBlocked}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </WrapPanel.Style>
+                            <ui:Button Margin="0,0,8,0" Appearance="Secondary" Content="Remover selecionadas"
+                                       Command="{Binding RemoveSelectedCommand}" />
+                            <ui:Button Appearance="Secondary" Content="Selecionar todas/nenhuma"
+                                       Command="{Binding ToggleSelectionCommand}" />
+                        </WrapPanel>
                         <ItemsControl ItemsSource="{Binding Leftovers}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Margin="0,4,0,4">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Margin="0,0,12,0">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static uninstall:LeftoverKind.Folder}">
-                                                                <Setter Property="Text" Value="Pasta" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static uninstall:LeftoverKind.RegistryKey}">
-                                                                <Setter Property="Text" Value="Chave do Registro" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static uninstall:LeftoverKind.Shortcut}">
-                                                                <Setter Property="Text" Value="Atalho" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                            <TextBlock>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
-                                                        <Setter Property="Text" Value="Confiança média" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Confidence}" Value="{x:Static uninstall:LeftoverConfidence.High}">
-                                                                <Setter Property="Text" Value="Confiança alta" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
+                                    <DockPanel Margin="0,4,0,4">
+                                        <CheckBox DockPanel.Dock="Left" Margin="0,0,8,0" VerticalAlignment="Top"
+                                                  AutomationProperties.Name="{Binding Item.Path}"
+                                                  IsChecked="{Binding IsSelected, Mode=TwoWay}">
+                                            <CheckBox.Style>
+                                                <Style TargetType="CheckBox">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding DataContext.CleanupBlocked, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                                                            <Setter Property="IsEnabled" Value="False" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding DataContext.IsManagingQuarantine, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                                                            <Setter Property="IsEnabled" Value="False" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </CheckBox.Style>
+                                        </CheckBox>
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Margin="0,0,12,0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Item.Kind}" Value="{x:Static uninstall:LeftoverKind.Folder}">
+                                                                    <Setter Property="Text" Value="Pasta" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Item.Kind}" Value="{x:Static uninstall:LeftoverKind.RegistryKey}">
+                                                                    <Setter Property="Text" Value="Chave do Registro" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Item.Kind}" Value="{x:Static uninstall:LeftoverKind.Shortcut}">
+                                                                    <Setter Property="Text" Value="Atalho" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock>
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
+                                                            <Setter Property="Text" Value="Confiança média" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Item.Confidence}" Value="{x:Static uninstall:LeftoverConfidence.High}">
+                                                                    <Setter Property="Text" Value="Confiança alta" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Item.Path}" TextWrapping="Wrap" />
                                         </StackPanel>
-                                        <TextBlock Text="{Binding Path}" TextWrapping="Wrap" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ui:Card>
+                <ui:Card Style="{StaticResource SectionCard}" Margin="0,0,0,12" Padding="16"
+                         HorizontalContentAlignment="Stretch">
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Quarentena do desinstalador" />
+                        <TextBlock Margin="0,4,0,0" Style="{StaticResource SecondaryText}"
+                                   Text="As operações expiram após 7 dias." />
+                        <TextBlock Margin="0,4,0,0" Text="{Binding QuarantineSummary}" TextWrapping="Wrap"
+                                   Visibility="{Binding QuarantineSummary, Converter={StaticResource NullToCollapsed}}" />
+                        <ItemsControl ItemsSource="{Binding QuarantineSkipped}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding}" TextWrapping="Wrap" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding QuarantineOperations}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,8,0,0">
+                                        <TextBlock FontWeight="SemiBold" Text="{Binding ProgramName}" TextWrapping="Wrap" />
+                                        <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding DateText}" />
+                                        <WrapPanel Margin="0,4,0,0">
+                                            <ui:Button Margin="0,0,8,0" Appearance="Secondary" Content="Restaurar"
+                                                       Command="{Binding DataContext.RestoreCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                       CommandParameter="{Binding}" />
+                                            <ui:Button Appearance="Secondary" Content="Excluir definitivamente"
+                                                       Command="{Binding DataContext.DeleteQuarantineCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                       CommandParameter="{Binding}" />
+                                        </WrapPanel>
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
