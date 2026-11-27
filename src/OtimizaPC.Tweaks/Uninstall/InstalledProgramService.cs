@@ -10,7 +10,7 @@ namespace OtimizaPC.Tweaks.Uninstall
 {
     public sealed class InstalledProgramService
     {
-        private const string UninstallPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
+        internal const string UninstallPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
 
         private static readonly string[] ValueNames =
         {

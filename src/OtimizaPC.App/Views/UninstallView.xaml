@@ -1,7 +1,8 @@
 <UserControl x:Class="OtimizaPC.App.Views.UninstallView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:uninstall="clr-namespace:OtimizaPC.Tweaks.Uninstall;assembly=OtimizaPC.Tweaks">
     <DockPanel Margin="28,24,28,0">
         <StackPanel DockPanel.Dock="Top">
             <DockPanel>
@@ -17,39 +18,101 @@
                 <ui:ProgressRing Width="16" Height="16" Margin="0,0,8,0" IsIndeterminate="True" />
                 <TextBlock Style="{StaticResource SecondaryText}" Text="Carregando programas instalados…" />
             </StackPanel>
+            <DockPanel Margin="0,0,0,12"
+                       Visibility="{Binding UninstallProgress, Converter={StaticResource NullToCollapsed}}">
+                <ui:Button DockPanel.Dock="Right" Margin="8,0,0,0" Appearance="Secondary"
+                           Content="Já terminei" Command="{Binding FinishWaitingCommand}"
+                           Visibility="{Binding IsWaitingForUninstallKey, Converter={StaticResource BoolToVisibility}}" />
+                <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding UninstallProgress}" TextWrapping="Wrap" />
+            </DockPanel>
             <TextBlock Margin="0,0,0,12" Foreground="{DynamicResource StatusCriticalForegroundBrush}"
                        Text="{Binding StatusMessage}" TextWrapping="Wrap"
                        Visibility="{Binding StatusMessage, Converter={StaticResource NullToCollapsed}}" />
         </StackPanel>
 
         <ScrollViewer Margin="0,0,0,24" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <ItemsControl Margin="0,0,12,0" ItemsSource="{Binding Items}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <ui:Card Style="{StaticResource SectionCard}" Margin="0,0,0,12" Padding="16" HorizontalContentAlignment="Stretch">
-                            <DockPanel>
-                                <Image DockPanel.Dock="Left" Width="32" Height="32" Margin="0,0,12,0"
-                                       Source="{Binding Icon}" Stretch="Uniform"
-                                       Visibility="{Binding Icon, Converter={StaticResource NullToCollapsed}}" />
-                                <StackPanel>
-                                    <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                               Text="{Binding Program.DisplayName}" TextWrapping="Wrap" />
-                                    <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Program.Publisher}" TextWrapping="Wrap" />
-                                    <WrapPanel Margin="0,6,0,0">
-                                        <TextBlock Margin="0,0,16,0" Style="{StaticResource SecondaryText}"
-                                                   Text="{Binding Program.DisplayVersion, StringFormat='Versão {0}'}"
-                                                   Visibility="{Binding Program.DisplayVersion, Converter={StaticResource NullToCollapsed}}" />
-                                        <TextBlock Margin="0,0,16,0" Style="{StaticResource SecondaryText}"
-                                                   Text="{Binding InstallDateText, StringFormat='Data de instalação {0}'}" />
-                                        <TextBlock Style="{StaticResource SecondaryText}"
-                                                   Text="{Binding EstimatedSizeText, StringFormat='Tamanho {0}'}" />
-                                    </WrapPanel>
-                                </StackPanel>
-                            </DockPanel>
-                        </ui:Card>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <StackPanel Margin="0,0,12,0">
+                <ui:Card Style="{StaticResource SectionCard}" Margin="0,0,0,12" Padding="16"
+                         HorizontalContentAlignment="Stretch"
+                         Visibility="{Binding Leftovers, Converter={StaticResource NullToCollapsed}}">
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="{Binding LeftoverSummary}" TextWrapping="Wrap" />
+                        <TextBlock Margin="0,4,0,8" Style="{StaticResource SecondaryText}"
+                                   Text="A limpeza das sobras chega na próxima versão" TextWrapping="Wrap" />
+                        <ItemsControl ItemsSource="{Binding Leftovers}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,4,0,4">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Margin="0,0,12,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static uninstall:LeftoverKind.Folder}">
+                                                                <Setter Property="Text" Value="Pasta" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static uninstall:LeftoverKind.RegistryKey}">
+                                                                <Setter Property="Text" Value="Chave do Registro" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static uninstall:LeftoverKind.Shortcut}">
+                                                                <Setter Property="Text" Value="Atalho" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
+                                                        <Setter Property="Text" Value="Confiança média" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Confidence}" Value="{x:Static uninstall:LeftoverConfidence.High}">
+                                                                <Setter Property="Text" Value="Confiança alta" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Path}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ui:Card>
+                <ItemsControl ItemsSource="{Binding Items}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <ui:Card Style="{StaticResource SectionCard}" Margin="0,0,0,12" Padding="16" HorizontalContentAlignment="Stretch">
+                                <DockPanel>
+                                    <ui:Button DockPanel.Dock="Right" Margin="12,0,0,0" VerticalAlignment="Center"
+                                               Appearance="Secondary" Content="Desinstalar"
+                                               Command="{Binding DataContext.UninstallCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                               CommandParameter="{Binding}" />
+                                    <Image DockPanel.Dock="Left" Width="32" Height="32" Margin="0,0,12,0"
+                                           Source="{Binding Icon}" Stretch="Uniform"
+                                           Visibility="{Binding Icon, Converter={StaticResource NullToCollapsed}}" />
+                                    <StackPanel>
+                                        <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                   Text="{Binding Program.DisplayName}" TextWrapping="Wrap" />
+                                        <TextBlock Style="{StaticResource SecondaryText}" Text="{Binding Program.Publisher}" TextWrapping="Wrap" />
+                                        <WrapPanel Margin="0,6,0,0">
+                                            <TextBlock Margin="0,0,16,0" Style="{StaticResource SecondaryText}"
+                                                       Text="{Binding Program.DisplayVersion, StringFormat='Versão {0}'}"
+                                                       Visibility="{Binding Program.DisplayVersion, Converter={StaticResource NullToCollapsed}}" />
+                                            <TextBlock Margin="0,0,16,0" Style="{StaticResource SecondaryText}"
+                                                       Text="{Binding InstallDateText, StringFormat='Data de instalação {0}'}" />
+                                            <TextBlock Style="{StaticResource SecondaryText}"
+                                                       Text="{Binding EstimatedSizeText, StringFormat='Tamanho {0}'}" />
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </DockPanel>
+                            </ui:Card>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
         </ScrollViewer>
     </DockPanel>
 </UserControl>
