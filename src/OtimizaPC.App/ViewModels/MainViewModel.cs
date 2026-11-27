@@ -72,6 +72,7 @@ namespace OtimizaPC.App.ViewModels
                 new NavItem("optimizations", "Otimizações", SymbolRegular.Flash24, new OptimizationsViewModel(dialogs)),
                 new NavItem("startup", "Inicialização", SymbolRegular.Rocket24, new StartupViewModel()),
                 new NavItem("apps", "Apps pré-instalados", SymbolRegular.Apps24, new AppsViewModel(dialogs)),
+                new NavItem("uninstall", "Desinstalador", SymbolRegular.AppStore24, new UninstallViewModel()),
                 new NavItem("repair", "Reparo", SymbolRegular.WrenchScrewdriver24, new RepairViewModel(dialogs)),
                 new NavItem("settings", "Configurações", SymbolRegular.Settings24, Settings),
             };
