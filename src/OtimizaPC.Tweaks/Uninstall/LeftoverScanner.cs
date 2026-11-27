@@ -14,16 +14,23 @@ namespace OtimizaPC.Tweaks.Uninstall
 
     public sealed class UninstallLeftover
     {
-        internal UninstallLeftover(LeftoverKind kind, string path, LeftoverConfidence confidence)
+        internal UninstallLeftover(LeftoverKind kind, string path, LeftoverConfidence confidence,
+            RegistryHive hive = RegistryHive.CurrentUser, RegistryView view = RegistryView.Default, string registryPath = null)
         {
             Kind = kind;
             Path = path;
             Confidence = confidence;
+            Hive = hive;
+            View = view;
+            RegistryPath = registryPath;
         }
 
         public LeftoverKind Kind { get; }
         public string Path { get; }
         public LeftoverConfidence Confidence { get; }
+        internal RegistryHive Hive { get; }
+        internal RegistryView View { get; }
+        internal string RegistryPath { get; }
     }
 
     internal interface ILeftoverFileSystem
@@ -49,7 +56,7 @@ namespace OtimizaPC.Tweaks.Uninstall
             "Program Files (x86)", "ProgramData", "AppData", "System", "System32",
             "Driver", "Drivers", "Application", "Applications", "Apps", "Common", "Shared",
             "Default", "Desktop", "Start Menu", "Temp", "Packages", "Installer", "Setup",
-            "Uninstall", "WOW6432Node", "Tools", "Utilities", "Windows Installer", "Program Files (x64)",
+            "Uninstall", "WOW6432Node", "Classes", "Policies", "RegisteredApplications", "Clients", "Tools", "Utilities", "Windows Installer", "Program Files (x64)",
             "System Files", "User Data", "Public", "Data", "Settings", "Config", "Cache"
         };
 
@@ -103,9 +110,45 @@ namespace OtimizaPC.Tweaks.Uninstall
             _is64Bit = is64Bit;
         }
 
-        public bool UninstallKeyExists(InstalledProgram program) =>
-            IsRegistryName(program.SubKeyName) &&
-            _registry.KeyExists(program.Hive, program.View, UninstallPath(program));
+        public bool UninstallKeyExists(InstalledProgram program)
+        {
+            if (!IsRegistryName(program.SubKeyName)) return true;
+
+            try
+            {
+                return _registry.KeyExists(program.Hive, program.View, UninstallPath(program));
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is SecurityException)
+            {
+                // Sem confirmação de que a chave sumiu, bloqueia a limpeza.
+                OtimizaPC.Core.Log.Error("Não foi possível verificar a chave Uninstall", ex);
+                return true;
+            }
+        }
+
+        internal bool IsAllowedFilePath(string path, LeftoverKind kind)
+        {
+            if (!Names.Equals(path, NormalizePath(path)) || path == null || _windows == null ||
+                Names.Equals(path, _windows) || IsBelow(path, _windows) || _roots.Contains(path))
+                return false;
+
+            if (kind == LeftoverKind.Folder)
+                return _dataRoots.Concat(_startMenus).Any(root => IsBelow(path, root));
+            return kind == LeftoverKind.Shortcut && Names.Equals(Path.GetExtension(path), ".lnk") &&
+                _startMenus.Concat(_desktops).Any(root => IsBelow(path, root));
+        }
+
+        internal bool IsSafeFile(string path, LeftoverKind kind)
+        {
+            if (!IsAllowedFilePath(path, kind)) return false;
+            if (kind == LeftoverKind.Folder)
+                return IsSafeDirectory(path);
+
+            if (!IsSafeDirectory(Path.GetDirectoryName(path))) return false;
+            var attributes = _files.GetAttributes(path);
+            return attributes.HasValue &&
+                (attributes.Value & (FileAttributes.Directory | FileAttributes.ReparsePoint)) == 0;
+        }
 
         public IReadOnlyList<UninstallLeftover> Scan(InstalledProgram program)
         {
@@ -154,9 +197,8 @@ namespace OtimizaPC.Tweaks.Uninstall
                     ScanShortcuts(root, product, includeSubdirectories: false, results);
             }
 
-            if (UninstallKeyExists(program))
-                results.Add(new UninstallLeftover(LeftoverKind.RegistryKey,
-                    RegistryDisplayPath(program.Hive, program.View, UninstallPath(program)), LeftoverConfidence.High));
+            if (IsRegistryName(program.SubKeyName) && UninstallKeyExists(program))
+                results.Add(RegistryLeftover(program.Hive, program.View, UninstallPath(program), LeftoverConfidence.High));
 
             // TODO: incluir tarefas agendadas em uma etapa futura.
             return results.GroupBy(item => item.Path, Names)
@@ -182,15 +224,13 @@ namespace OtimizaPC.Tweaks.Uninstall
             const string root = "SOFTWARE";
             var names = new HashSet<string>(_registry.GetSubKeyNames(hive, view, root), Names);
             if (IsRegistryName(product) && names.Contains(product))
-                results.Add(new UninstallLeftover(LeftoverKind.RegistryKey,
-                    RegistryDisplayPath(hive, view, root + "\\" + product), LeftoverConfidence.High));
+                results.Add(RegistryLeftover(hive, view, root + "\\" + product, LeftoverConfidence.High));
 
             if (!IsRegistryName(product) || !IsRegistryName(publisher) || !names.Contains(publisher)) return;
 
             var publisherPath = root + "\\" + publisher;
             if (_registry.GetSubKeyNames(hive, view, publisherPath).Contains(product, Names))
-                results.Add(new UninstallLeftover(LeftoverKind.RegistryKey,
-                    RegistryDisplayPath(hive, view, publisherPath + "\\" + product), LeftoverConfidence.Medium));
+                results.Add(RegistryLeftover(hive, view, publisherPath + "\\" + product, LeftoverConfidence.Medium));
         }
 
         private void ScanShortcuts(string root, string product, bool includeSubdirectories, List<UninstallLeftover> results)
@@ -295,6 +335,11 @@ namespace OtimizaPC.Tweaks.Uninstall
 
         private static string UninstallPath(InstalledProgram program) =>
             InstalledProgramService.UninstallPath + "\\" + program.SubKeyName;
+
+        private UninstallLeftover RegistryLeftover(RegistryHive hive, RegistryView view, string path,
+            LeftoverConfidence confidence) =>
+            new UninstallLeftover(LeftoverKind.RegistryKey, RegistryDisplayPath(hive, view, path),
+                confidence, hive, view, path);
 
         private string RegistryDisplayPath(RegistryHive hive, RegistryView view, string path)
         {

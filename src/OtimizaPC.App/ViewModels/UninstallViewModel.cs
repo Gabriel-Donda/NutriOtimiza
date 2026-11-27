@@ -48,14 +48,31 @@ namespace OtimizaPC.App.ViewModels
         }
     }
 
+    public sealed partial class UninstallLeftoverItemViewModel : ObservableObject
+    {
+        public UninstallLeftoverItemViewModel(UninstallLeftover item)
+        {
+            Item = item;
+            _isSelected = item.Confidence == LeftoverConfidence.High;
+        }
+
+        public UninstallLeftover Item { get; }
+
+        [ObservableProperty]
+        private bool _isSelected;
+    }
+
     public partial class UninstallViewModel : ObservableObject, IActivatable
     {
         private readonly IDialogService _dialogs;
         private readonly LeftoverScanner _scanner = new LeftoverScanner();
+        private readonly UninstallQuarantine _quarantine;
+        private InstalledProgram _scannedProgram;
         private TaskCompletionSource<bool> _finishWaiting;
         private readonly InstalledProgramService _service = new InstalledProgramService();
         private IReadOnlyList<InstalledProgramItemViewModel> _programs = Array.Empty<InstalledProgramItemViewModel>();
         private bool _loaded;
+        private bool _quarantineRefreshPending;
 
         [ObservableProperty]
         private string _searchText;
@@ -63,11 +80,19 @@ namespace OtimizaPC.App.ViewModels
         [ObservableProperty]
         [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
         [NotifyCanExecuteChangedFor(nameof(UninstallCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RemoveSelectedCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ToggleSelectionCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RestoreCommand))]
+        [NotifyCanExecuteChangedFor(nameof(DeleteQuarantineCommand))]
         private bool _isLoading;
 
         [ObservableProperty]
         [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
         [NotifyCanExecuteChangedFor(nameof(UninstallCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RemoveSelectedCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ToggleSelectionCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RestoreCommand))]
+        [NotifyCanExecuteChangedFor(nameof(DeleteQuarantineCommand))]
         private bool _isUninstalling;
 
         [ObservableProperty]
@@ -77,7 +102,31 @@ namespace OtimizaPC.App.ViewModels
         private bool _isWaitingForUninstallKey;
 
         [ObservableProperty]
-        private IReadOnlyList<UninstallLeftover> _leftovers;
+        private IReadOnlyList<UninstallLeftoverItemViewModel> _leftovers;
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(RemoveSelectedCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ToggleSelectionCommand))]
+        [NotifyPropertyChangedFor(nameof(CleanupWarning))]
+        private bool _cleanupBlocked;
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
+        [NotifyCanExecuteChangedFor(nameof(UninstallCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RemoveSelectedCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ToggleSelectionCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RestoreCommand))]
+        [NotifyCanExecuteChangedFor(nameof(DeleteQuarantineCommand))]
+        private bool _isManagingQuarantine;
+
+        [ObservableProperty]
+        private IReadOnlyList<UninstallQuarantineOperation> _quarantineOperations;
+
+        [ObservableProperty]
+        private string _quarantineSummary;
+
+        [ObservableProperty]
+        private IReadOnlyList<string> _quarantineSkipped;
 
         [ObservableProperty]
         private string _leftoverSummary;
@@ -92,6 +141,7 @@ namespace OtimizaPC.App.ViewModels
         public UninstallViewModel(IDialogService dialogs)
         {
             _dialogs = dialogs;
+            _quarantine = new UninstallQuarantine(_scanner);
         }
 
         public string Summary => Items.Count == _programs.Count
@@ -100,7 +150,8 @@ namespace OtimizaPC.App.ViewModels
 
         public void OnActivated()
         {
-            if (!_loaded && CanRefresh()) _ = RefreshAsync();
+            _quarantineRefreshPending = true;
+            if (CanRefresh()) _ = LoadPageAsync();
         }
 
         public void OnDeactivated()
@@ -109,7 +160,133 @@ namespace OtimizaPC.App.ViewModels
 
         partial void OnSearchTextChanged(string value) => ApplySearch();
 
-        private bool CanRefresh() => !IsLoading && !IsUninstalling;
+        public string CleanupWarning => CleanupBlocked ? UninstallQuarantineResult.StillInstalledMessage : null;
+
+        private bool CanRefresh() => !IsLoading && !IsUninstalling && !IsManagingQuarantine;
+
+        private async Task LoadPageAsync()
+        {
+            if (!_quarantineRefreshPending || !CanRefresh()) return;
+
+            _quarantineRefreshPending = false;
+            if (!_loaded) await RefreshAsync();
+            if (!CanRefresh()) return;
+
+            await ManageQuarantineAsync(async () =>
+            {
+                QuarantineOperations = await Task.Run(() =>
+                {
+                    _quarantine.PurgeExpired();
+                    return _quarantine.List();
+                });
+            });
+        }
+
+        private bool CanToggleSelection() => CanRefresh() && !CleanupBlocked && Leftovers?.Count > 0;
+
+        private bool CanRemoveSelected() => CanToggleSelection() && Leftovers.Any(item => item.IsSelected);
+
+        partial void OnLeftoversChanging(IReadOnlyList<UninstallLeftoverItemViewModel> value)
+        {
+            if (Leftovers == null) return;
+            foreach (var item in Leftovers) item.PropertyChanged -= OnLeftoverSelectionChanged;
+        }
+
+        partial void OnLeftoversChanged(IReadOnlyList<UninstallLeftoverItemViewModel> value)
+        {
+            if (value != null)
+                foreach (var item in value) item.PropertyChanged += OnLeftoverSelectionChanged;
+
+            ToggleSelectionCommand.NotifyCanExecuteChanged();
+            RemoveSelectedCommand.NotifyCanExecuteChanged();
+        }
+
+        private void OnLeftoverSelectionChanged(object sender, PropertyChangedEventArgs e) =>
+            RemoveSelectedCommand.NotifyCanExecuteChanged();
+
+        [RelayCommand(CanExecute = nameof(CanToggleSelection))]
+        private void ToggleSelection()
+        {
+            var select = Leftovers.Any(item => !item.IsSelected);
+            foreach (var item in Leftovers) item.IsSelected = select;
+        }
+
+        [RelayCommand(CanExecute = nameof(CanRemoveSelected))]
+        private Task RemoveSelectedAsync() => ManageQuarantineAsync(async () =>
+        {
+            var selected = Leftovers.Where(item => item.IsSelected).ToList();
+            if (!await _dialogs.ConfirmAsync("Remover sobras",
+                $"Mover {selected.Count} sobra(s) para a quarentena?", "Remover selecionadas")) return;
+
+            var result = await Task.Run(() => _quarantine.Remove(_scannedProgram, selected.Select(item => item.Item).ToList()));
+            CleanupBlocked = result.Blocked;
+            ShowQuarantineResult(result, "removida(s)");
+            await ReloadQuarantineAsync();
+            if (!CleanupBlocked) await ScanLeftoversAsync(_scannedProgram);
+        });
+
+        private bool CanManageOperation(UninstallQuarantineOperation operation) => operation != null && CanRefresh();
+
+        [RelayCommand(CanExecute = nameof(CanManageOperation))]
+        private Task RestoreAsync(UninstallQuarantineOperation operation) => ManageQuarantineAsync(async () =>
+        {
+            var result = await Task.Run(() => _quarantine.Restore(operation));
+            ShowQuarantineResult(result, "restaurada(s)");
+            await ReloadQuarantineAsync();
+        });
+
+        [RelayCommand(CanExecute = nameof(CanManageOperation))]
+        private Task DeleteQuarantineAsync(UninstallQuarantineOperation operation) => ManageQuarantineAsync(async () =>
+        {
+            if (!await _dialogs.ConfirmAsync("Excluir quarentena",
+                $"Excluir definitivamente a quarentena de {operation.ProgramName} ({operation.DateText})?", "Excluir definitivamente")) return;
+
+            await Task.Run(() => _quarantine.Delete(operation));
+            QuarantineSummary = "Operação excluída definitivamente.";
+            QuarantineSkipped = null;
+            await ReloadQuarantineAsync();
+        });
+
+        private async Task ManageQuarantineAsync(Func<Task> action)
+        {
+            IsManagingQuarantine = true;
+            try
+            {
+                await action();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Falha na quarentena do desinstalador", ex);
+                QuarantineSummary = "Falha na quarentena. " + ex.Message;
+                QuarantineSkipped = null;
+            }
+            finally
+            {
+                IsManagingQuarantine = false;
+                if (_quarantineRefreshPending) _ = LoadPageAsync();
+            }
+        }
+
+        private async Task ReloadQuarantineAsync() => QuarantineOperations = await Task.Run(() => _quarantine.List());
+
+        private void ShowQuarantineResult(UninstallQuarantineResult result, string verb)
+        {
+            QuarantineSummary = $"{result.Completed} sobra(s) {verb}, {result.Skipped.Count} pulada(s).";
+            QuarantineSkipped = result.Skipped;
+        }
+
+        private async Task ScanLeftoversAsync(InstalledProgram program)
+        {
+            var scan = await Task.Run(() =>
+            {
+                var leftovers = _scanner.Scan(program);
+                return (Items: leftovers, Blocked: _scanner.UninstallKeyExists(program));
+            });
+            CleanupBlocked = scan.Blocked;
+            _scannedProgram = program;
+            LeftoverSummary = $"{program.DisplayName} — {scan.Items.Count} sobra(s) encontrada(s)";
+            Leftovers = scan.Items.Select(item => new UninstallLeftoverItemViewModel(item)).ToList();
+        }
 
         private bool CanUninstall(InstalledProgramItemViewModel item) => item != null && CanRefresh();
 
@@ -131,6 +308,9 @@ namespace OtimizaPC.App.ViewModels
 
                 StatusMessage = null;
                 Leftovers = null;
+                CleanupBlocked = false;
+                QuarantineSummary = null;
+                QuarantineSkipped = null;
                 UninstallProgress = "Aguardando o desinstalador do programa…";
                 var exitCode = await Task.Run(() =>
                 {
@@ -146,9 +326,7 @@ namespace OtimizaPC.App.ViewModels
                 await WaitForUninstallKeyAsync(program);
 
                 UninstallProgress = "Procurando sobras…";
-                var leftovers = await Task.Run(() => _scanner.Scan(program));
-                LeftoverSummary = $"{program.DisplayName} — {leftovers.Count} sobra(s) encontrada(s)";
-                Leftovers = leftovers;
+                await ScanLeftoversAsync(program);
                 await RefreshAsync();
 
                 if (exitCode.HasValue && exitCode != 0 && exitCode != 1641 && exitCode != 3010)
@@ -174,6 +352,7 @@ namespace OtimizaPC.App.ViewModels
             {
                 UninstallProgress = null;
                 IsUninstalling = false;
+                if (_quarantineRefreshPending) _ = LoadPageAsync();
             }
         }
 
@@ -226,6 +405,7 @@ namespace OtimizaPC.App.ViewModels
             finally
             {
                 IsLoading = false;
+                if (_quarantineRefreshPending && CanRefresh()) _ = LoadPageAsync();
             }
         }
 
